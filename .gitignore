@@ -13,3 +13,13 @@
 
 # Dependency directories (remove the comment below to include it)
 # vendor/
+
+# GoLand
+/.idea/
+*.iml
+
+# Configuration
+config.yaml
+
+# Binary
+shadomplexer

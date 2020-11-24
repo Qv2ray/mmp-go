@@ -1,0 +1,47 @@
+description: Shadomplexer Configuration
+properties:
+  listen:
+    description: Address To Listen On
+    examples:
+      - :25565
+      - 127.0.0.1:4096
+      - 0.0.0.0:23333
+      - [::1]:3322
+    type: string
+  servers:
+    description: Upstream Servers
+    items:
+      properties:
+        name:
+          description: Server Identifier
+          examples:
+            - ducksoft-vultr-jp-01
+          type: string
+        addr:
+          description: Server Address
+          examples:
+            - someone.com:1145
+            - 123.123.123.123:25565
+            - [ 2001:da8::1 ]:12345
+          type: string
+        method:
+          description: Encryption Method
+          enum:
+            - chacha20-ietf-poly1305
+          type: string
+        passwords:
+          description: Password of Server Users
+          minItems: 1
+          items:
+            type: string
+          type: array
+      required:
+        - name
+        - addr
+        - method
+        - passwords
+    type: object
+required:
+  - listen
+  - servers
+type: object
