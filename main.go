@@ -39,7 +39,7 @@ func main() {
 	config := NewConfigFromYAMLFile(*configFilePath)
 	memConf := NewMemoryConfig(config)
 
-	listener, err := net.Listen("tcp", ":4445")
+	listener, err := net.Listen("tcp", config.Listen)
 	if err != nil {
 		log.Fatalf("failed to listen tcp: %v", err)
 	}
