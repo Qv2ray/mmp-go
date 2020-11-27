@@ -139,6 +139,6 @@ func probe(data []byte, server *Server) bool {
 	cipher, _ := conf.NewCipher(subKey)
 	buf := make([]byte, 2)
 	_, err := cipher.Open(buf, nonce, cipherText, nil)
-	log.Println(err)
+	log.Println(err == nil)
 	return err == nil
 }

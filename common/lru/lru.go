@@ -6,9 +6,9 @@ import (
 )
 
 type LRU struct {
-	list         linklist.Linklist
+	list         *linklist.Linklist
 	index        map[interface{}]*linklist.Node
-	reverseIndex map[interface{}]*linklist.Node
+	reverseIndex map[*linklist.Node]interface{}
 	sync.Mutex
 	maxLen int
 }
@@ -16,7 +16,9 @@ type LRU struct {
 func New(maxLen int) *LRU {
 	return &LRU{
 		index:  make(map[interface{}]*linklist.Node),
+		reverseIndex:  make(map[*linklist.Node]interface{}),
 		maxLen: maxLen,
+		list: linklist.NewLinklist(),
 	}
 }
 
@@ -36,6 +38,7 @@ func (l *LRU) Insert(key interface{}, val interface{}) {
 	defer l.Unlock()
 	node := l.list.PushFront(val)
 	l.index[key] = node
+	l.reverseIndex[node] = key
 	if len(l.index) > l.maxLen {
 		back := l.list.Back()
 		key := l.reverseIndex[back]
