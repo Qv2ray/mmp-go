@@ -2,14 +2,12 @@ package main
 
 import (
 	"crypto/sha1"
-	"errors"
 	"fmt"
 	"github.com/mzz2017/glen/common/linklist"
 	"golang.org/x/crypto/hkdf"
 	"io"
 	"log"
 	"net"
-	"syscall"
 	"time"
 )
 
@@ -82,7 +80,11 @@ func handleConn(conn net.Conn, group *Group) error {
 	if err != nil {
 		return fmt.Errorf("handleConn write error: %v", err)
 	}
-	if err := relay(conn, rc); !errors.Is(err, syscall.ETIMEDOUT) {
+	log.Printf("[tcp] %s <-> %s <-> %s ", conn.RemoteAddr(), conn.LocalAddr(), rc.RemoteAddr())
+	if err := relay(conn, rc); err != nil {
+		if err, ok := err.(net.Error); ok && err.Timeout() {
+			return nil // ignore i/o timeout
+		}
 		return fmt.Errorf("handleConn relay error: %v", err)
 	}
 	return nil
@@ -111,10 +113,7 @@ func auth(data []byte, userContext *UserContext) (hit *Server, err error) {
 		return nil, fmt.Errorf("length of data should be no less than 50")
 	}
 	ctx := userContext.Infra()
-	cnt := 0
 	for serverNode := ctx.Front(); serverNode != ctx.Tail(); serverNode = serverNode.Next() {
-		log.Println(cnt)
-		cnt++
 		server := serverNode.Val.(*Server)
 		if probe(data, server) {
 			ctx.Promote(serverNode)
