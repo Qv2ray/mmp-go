@@ -58,7 +58,7 @@ func handleConn(conn net.Conn, group *Group) error {
 	if err != nil {
 		return fmt.Errorf("handleConn readfull error: %v", err)
 	}
-	userIdent := conn.RemoteAddr().String()
+	userIdent, _, _ := net.SplitHostPort(conn.RemoteAddr().String())
 	var userContext *UserContext
 	nodeUserContext := group.UserContext.Get(userIdent)
 	if nodeUserContext == nil {
@@ -111,10 +111,11 @@ func auth(data []byte, userContext *UserContext) (hit *Server, err error) {
 		return nil, fmt.Errorf("length of data should be no less than 50")
 	}
 	ctx := userContext.Infra()
+	cnt := 0
 	for serverNode := ctx.Front(); serverNode != ctx.Tail(); serverNode = serverNode.Next() {
+		log.Println(cnt)
+		cnt++
 		server := serverNode.Val.(*Server)
-		//d := make([]byte, len(data))
-		//copy(d, data)
 		if probe(data, server) {
 			ctx.Promote(serverNode)
 			return server, nil

@@ -1,9 +1,10 @@
 package main
 
 import (
+	"crypto/aes"
+	"crypto/cipher"
 	"crypto/md5"
 )
-
 
 func MD5Sum(d []byte) []byte {
 	h := md5.New()
@@ -31,7 +32,10 @@ func EVPBytesToKey(password string, keyLen int) (key []byte) {
 	return m[:keyLen]
 }
 
-
-func NewGcm() {
-
+func NewGcm(key []byte) (cipher.AEAD, error) {
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		panic(err.Error())
+	}
+	return cipher.NewGCM(block)
 }
