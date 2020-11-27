@@ -1,4 +1,4 @@
-module github.com/mzz2017/glen
+module github.com/Qv2ray/shadomplexer-go
 
 go 1.15
 

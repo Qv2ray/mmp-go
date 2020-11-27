@@ -3,7 +3,7 @@ package main
 import (
 	"crypto/sha1"
 	"fmt"
-	"github.com/mzz2017/glen/common/linklist"
+	"github.com/Qv2ray/shadomplexer-go/common/linklist"
 	"golang.org/x/crypto/hkdf"
 	"io"
 	"log"

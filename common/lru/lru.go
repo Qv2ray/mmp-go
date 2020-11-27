@@ -1,7 +1,7 @@
 package lru
 
 import (
-	"github.com/mzz2017/glen/common/linklist"
+	"github.com/Qv2ray/shadomplexer-go/common/linklist"
 	"sync"
 )
 

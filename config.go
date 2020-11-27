@@ -3,7 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/mzz2017/glen/common/lru"
+	"github.com/Qv2ray/shadomplexer-go/common/lru"
 	"io/ioutil"
 	"log"
 	"sync"
