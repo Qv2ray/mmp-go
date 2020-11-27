@@ -11,8 +11,8 @@ AEAD methods supported:
 Author:
 
 - mzz2017
+- DuckSoft
 
 Special Thanks:
 
 - Qv2ray Developer Community
-- DuckSoft
