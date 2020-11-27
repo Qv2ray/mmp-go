@@ -43,7 +43,7 @@ func build(config *Config) {
 		g.UserContext = lru.New(lruSize)
 		for j := range config.Groups[i].Servers {
 			s := &config.Groups[i].Servers[j]
-			s.MasterKey = EVPBytesToKey([]byte(s.Password))
+			s.MasterKey = EVPBytesToKey(s.Password, CiphersConf[s.Method].KeyLen)
 		}
 	}
 }

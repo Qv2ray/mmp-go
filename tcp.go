@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-func ListenTCP(group *Group) {
+func ListenTCP(group *Group) (err error) {
 	l, err := net.Listen("tcp", fmt.Sprintf(":%d", group.Port))
 	if err != nil {
 		return
@@ -22,9 +22,14 @@ func ListenTCP(group *Group) {
 	for {
 		conn, err := l.Accept()
 		if err != nil {
-			log.Fatalln(err)
+			continue
 		}
-		go handleConn(conn, group)
+		go func() {
+			err := handleConn(conn, group)
+			if err != nil {
+				log.Println(err)
+			}
+		}()
 	}
 }
 
@@ -128,7 +133,7 @@ func probe(data []byte, server *Server) bool {
 	subKey := make([]byte, conf.KeyLen)
 	kdf := hkdf.New(
 		sha1.New,
-		server.MasterKey[:conf.KeyLen],
+		server.MasterKey,
 		salt,
 		[]byte("ss-subkey"),
 	)
@@ -139,6 +144,5 @@ func probe(data []byte, server *Server) bool {
 	cipher, _ := conf.NewCipher(subKey)
 	buf := make([]byte, 2)
 	_, err := cipher.Open(buf, nonce, cipherText, nil)
-	log.Println(err == nil)
 	return err == nil
 }

@@ -1,6 +1,9 @@
 package main
 
-import "sync"
+import (
+	"log"
+	"sync"
+)
 
 func main() {
 	config := GetConfig()
@@ -8,7 +11,10 @@ func main() {
 	for i := range config.Groups {
 		wg.Add(1)
 		go func(group *Group) {
-			ListenTCP(group)
+			err := ListenTCP(group)
+			if err != nil {
+				log.Fatalln(err)
+			}
 			wg.Done()
 		}(&config.Groups[i])
 	}
