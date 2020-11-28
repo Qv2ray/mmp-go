@@ -72,6 +72,9 @@ func (l *Linklist) PushBack(val interface{}) *Node {
 }
 
 func (l *Linklist) Promote(p *Node) {
+	if p == l.Front() {
+		return
+	}
 	p.prior.next = p.next
 	p.next.prior = p.prior
 	p.prior = l.head
@@ -81,6 +84,9 @@ func (l *Linklist) Promote(p *Node) {
 }
 
 func (l *Linklist) Demote(p *Node) {
+	if p == l.Back(){
+		return
+	}
 	p.prior.next = p.next
 	p.next.prior = p.prior
 	p.prior = l.tail.prior

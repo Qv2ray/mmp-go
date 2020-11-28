@@ -58,10 +58,10 @@ func handleConn(conn net.Conn, group *Group) error {
 	}
 	userIdent, _, _ := net.SplitHostPort(conn.RemoteAddr().String())
 	var userContext *UserContext
-	nodeUserContext := group.UserContext.Get(userIdent)
+	nodeUserContext := group.UserContextPool.Get(userIdent)
 	if nodeUserContext == nil {
 		userContext = NewUserContext(group.Servers)
-		group.UserContext.Insert(userIdent, userContext)
+		group.UserContextPool.Insert(userIdent, userContext)
 	} else {
 		userContext = nodeUserContext.Val.(*UserContext)
 	}
