@@ -11,8 +11,6 @@ type Dispatcher interface {
 	Close() (err error)
 }
 
-var ZeroNonce [128]byte
-
 type DispatcherCreator func(group *config.Group) Dispatcher
 
 var mapDispatherCreator sync.Map

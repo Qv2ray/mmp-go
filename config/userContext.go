@@ -22,7 +22,7 @@ func (ctx *UserContext) Infra() *linklist.Linklist {
 	return (*linklist.Linklist)(ctx)
 }
 
-func (ctx *UserContext) Auth(probe func(*Server) bool) (hit *config.Server, err error) {
+func (ctx *UserContext) Auth(probe func(*Server) bool) (hit *Server, err error) {
 	list := ctx.Infra()
 	// probe every server
 	for serverNode := list.Front(); serverNode != list.Tail(); serverNode = serverNode.Next() {

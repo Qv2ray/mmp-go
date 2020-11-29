@@ -5,11 +5,12 @@ import (
 	"crypto/cipher"
 	"crypto/md5"
 	"crypto/sha1"
-	"github.com/Qv2ray/shadomplexer-go/dispatcher"
 	"golang.org/x/crypto/chacha20poly1305"
 	"golang.org/x/crypto/hkdf"
 	"io"
 )
+
+var ZeroNonce [128]byte
 
 type CipherConf struct {
 	KeyLen    int
@@ -31,7 +32,7 @@ func (conf *CipherConf) Verify(masterKey []byte, salt []byte, cipherText []byte)
 
 	ciph, _ := conf.NewCipher(subKey)
 	buf := make([]byte, 2)
-	_, err := ciph.Open(buf, dispatcher.ZeroNonce[:conf.NonceLen], cipherText, nil)
+	_, err := ciph.Open(buf, ZeroNonce[:conf.NonceLen], cipherText, nil)
 	return err == nil
 }
 

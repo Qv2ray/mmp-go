@@ -24,7 +24,7 @@ type Group struct {
 	Port            int             `json:"port"`
 	Servers         []Server        `json:"servers"`
 	LRUSize         int             `json:"lruSize"`
-	UserContextPool UserContextPool `json:"-"`
+	UserContextPool *UserContextPool `json:"-"`
 }
 
 var config *Config
@@ -45,7 +45,7 @@ func build(config *Config) {
 		if lruSize == 0 {
 			lruSize = globalLRUSize
 		}
-		g.UserContextPool = lru.New(lruSize)
+		g.UserContextPool = (*UserContextPool)(lru.New(lruSize))
 		for j := range config.Groups[i].Servers {
 			s := &config.Groups[i].Servers[j]
 			s.MasterKey = cipher.EVPBytesToKey(s.Password, cipher.CiphersConf[s.Method].KeyLen)

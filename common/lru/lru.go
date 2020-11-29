@@ -9,8 +9,8 @@ type LRU struct {
 	list         *linklist.Linklist
 	index        map[interface{}]*linklist.Node
 	reverseIndex map[*linklist.Node]interface{}
-	sync.Mutex
-	maxLen int
+	mutex        sync.Mutex
+	maxLen       int
 }
 
 func New(maxLen int) *LRU {
@@ -23,8 +23,8 @@ func New(maxLen int) *LRU {
 }
 
 func (l *LRU) GetOrInsert(key interface{}, valFunc func() (val interface{})) *linklist.Node {
-	l.Lock()
-	defer l.Unlock()
+	l.mutex.Lock()
+	defer l.mutex.Unlock()
 	node := l.get(key)
 	if node == nil {
 		return l.insert(key, valFunc())
@@ -33,8 +33,8 @@ func (l *LRU) GetOrInsert(key interface{}, valFunc func() (val interface{})) *li
 }
 
 func (l *LRU) Get(key interface{}) *linklist.Node {
-	l.Lock()
-	defer l.Unlock()
+	l.mutex.Lock()
+	defer l.mutex.Unlock()
 	return l.get(key)
 }
 
@@ -48,8 +48,8 @@ func (l *LRU) get(key interface{}) *linklist.Node {
 }
 
 func (l *LRU) Insert(key interface{}, val interface{}) *linklist.Node {
-	l.Lock()
-	defer l.Unlock()
+	l.mutex.Lock()
+	defer l.mutex.Unlock()
 	return l.insert(key, val)
 }
 
