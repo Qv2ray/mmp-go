@@ -21,10 +21,10 @@ type Server struct {
 	MasterKey []byte `json:"-"`
 }
 type Group struct {
-	Port            int      `json:"port"`
-	Servers         []Server `json:"servers"`
-	LRUSize         int      `json:"lruSize"`
-	UserContextPool *lru.LRU `json:"-"`
+	Port            int             `json:"port"`
+	Servers         []Server        `json:"servers"`
+	LRUSize         int             `json:"lruSize"`
+	UserContextPool UserContextPool `json:"-"`
 }
 
 var config *Config

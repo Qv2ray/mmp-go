@@ -4,7 +4,11 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/md5"
+	"crypto/sha1"
+	"github.com/Qv2ray/shadomplexer-go/dispatcher"
 	"golang.org/x/crypto/chacha20poly1305"
+	"golang.org/x/crypto/hkdf"
+	"io"
 )
 
 type CipherConf struct {
@@ -13,6 +17,22 @@ type CipherConf struct {
 	NonceLen  int
 	TagLen    int
 	NewCipher func(key []byte) (cipher.AEAD, error)
+}
+
+func (conf *CipherConf) Verify(masterKey []byte, salt []byte, cipherText []byte) bool {
+	subKey := make([]byte, conf.KeyLen)
+	kdf := hkdf.New(
+		sha1.New,
+		masterKey,
+		salt,
+		[]byte("ss-subkey"),
+	)
+	io.ReadFull(kdf, subKey)
+
+	ciph, _ := conf.NewCipher(subKey)
+	buf := make([]byte, 2)
+	_, err := ciph.Open(buf, dispatcher.ZeroNonce[:conf.NonceLen], cipherText, nil)
+	return err == nil
 }
 
 var CiphersConf = map[string]CipherConf{

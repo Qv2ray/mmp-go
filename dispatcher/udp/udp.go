@@ -1,13 +1,10 @@
 package udp
 
 import (
-	"crypto/sha1"
 	"fmt"
 	"github.com/Qv2ray/shadomplexer-go/cipher"
 	"github.com/Qv2ray/shadomplexer-go/config"
 	"github.com/Qv2ray/shadomplexer-go/dispatcher"
-	"golang.org/x/crypto/hkdf"
-	"io"
 	"log"
 	"net"
 	"time"
@@ -54,10 +51,7 @@ func (d *Dispatcher) Listen() (err error) {
 
 func (d *Dispatcher) handleConn(laddr net.Addr, buf []byte, n int) (err error) {
 	// get user's context (preference)
-	userIdent, _, _ := net.SplitHostPort(laddr.String())
-	userContext := d.group.UserContextPool.GetOrInsert(userIdent, func() (val interface{}) {
-		return config.NewUserContext(d.group.Servers)
-	}).Val.(*config.UserContext)
+	userContext := d.group.UserContextPool.Get(laddr, d.group.Servers)
 
 	// auth every server
 	server, err := d.Auth(buf[:n], userContext)
@@ -120,16 +114,9 @@ func (d *Dispatcher) Auth(data []byte, userContext *config.UserContext) (hit *co
 	if len(data) <= 32 {
 		return nil, nil //fmt.Errorf("length of data should be greater than 32")
 	}
-	ctx := userContext.Infra()
-	// probe every server
-	for serverNode := ctx.Front(); serverNode != ctx.Tail(); serverNode = serverNode.Next() {
-		server := serverNode.Val.(*config.Server)
-		if probe(data, server) {
-			ctx.Promote(serverNode)
-			return server, nil
-		}
-	}
-	return nil, nil
+	return userContext.Auth(func(server *config.Server) bool {
+		return probe(data, server)
+	})
 }
 
 func (d *Dispatcher) Close() (err error) {
@@ -137,17 +124,12 @@ func (d *Dispatcher) Close() (err error) {
 }
 
 func probe(data []byte, server *config.Server) bool {
+	//[salt][encrypted payload][tag]
 	conf := cipher.CiphersConf[server.Method]
 	if len(data) < conf.SaltLen+conf.TagLen {
 		return false
 	}
 	salt := data[:conf.SaltLen]
 	cipherText := data[conf.SaltLen:]
-	kdf := hkdf.New(sha1.New, server.MasterKey[:conf.KeyLen], salt, []byte("ss-subkey"))
-	subKey := make([]byte, conf.KeyLen)
-	io.ReadFull(kdf, subKey)
-	ciph, _ := conf.NewCipher(subKey)
-	buf := make([]byte, UDPBufSize)
-	_, err := ciph.Open(buf, dispatcher.ZeroNonce[:conf.NonceLen], cipherText, nil)
-	return err == nil
+	return conf.Verify(server.MasterKey, salt, cipherText)
 }

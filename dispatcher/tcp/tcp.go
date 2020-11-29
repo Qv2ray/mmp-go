@@ -1,12 +1,10 @@
 package tcp
 
 import (
-	"crypto/sha1"
 	"fmt"
 	"github.com/Qv2ray/shadomplexer-go/cipher"
 	"github.com/Qv2ray/shadomplexer-go/config"
 	"github.com/Qv2ray/shadomplexer-go/dispatcher"
-	"golang.org/x/crypto/hkdf"
 	"io"
 	"log"
 	"net"
@@ -16,7 +14,6 @@ import (
 func init() {
 	dispatcher.Register("tcp", New)
 }
-
 
 type Dispatcher struct {
 	group *config.Group
@@ -66,10 +63,7 @@ func (d *Dispatcher) handleConn(conn net.Conn) error {
 	}
 
 	// get user's context (preference)
-	userIdent, _, _ := net.SplitHostPort(conn.RemoteAddr().String())
-	userContext := d.group.UserContextPool.GetOrInsert(userIdent, func() (val interface{}) {
-		return config.NewUserContext(d.group.Servers)
-	}).Val.(*config.UserContext)
+	userContext := d.group.UserContextPool.Get(conn.RemoteAddr(), d.group.Servers)
 
 	// auth every server
 	server, err := d.Auth(buf[:], userContext)
@@ -121,16 +115,9 @@ func (d *Dispatcher) Auth(data []byte, userContext *config.UserContext) (hit *co
 	if len(data) < 50 {
 		return nil, nil //fmt.Errorf("length of data should be no less than 50")
 	}
-	ctx := userContext.Infra()
-	// probe every server
-	for serverNode := ctx.Front(); serverNode != ctx.Tail(); serverNode = serverNode.Next() {
-		server := serverNode.Val.(*config.Server)
-		if probe(data, server) {
-			ctx.Promote(serverNode)
-			return server, nil
-		}
-	}
-	return nil, nil
+	return userContext.Auth(func(server *config.Server) bool {
+		return probe(data, server)
+	})
 }
 
 func probe(data []byte, server *config.Server) bool {
@@ -140,17 +127,5 @@ func probe(data []byte, server *config.Server) bool {
 	salt := data[:conf.SaltLen]
 	cipherText := data[conf.SaltLen : conf.SaltLen+2+conf.TagLen]
 
-	subKey := make([]byte, conf.KeyLen)
-	kdf := hkdf.New(
-		sha1.New,
-		server.MasterKey,
-		salt,
-		[]byte("ss-subkey"),
-	)
-	io.ReadFull(kdf, subKey)
-
-	ciph, _ := conf.NewCipher(subKey)
-	buf := make([]byte, 2)
-	_, err := ciph.Open(buf, dispatcher.ZeroNonce[:conf.NonceLen], cipherText, nil)
-	return err == nil
+	return conf.Verify(server.MasterKey, salt, cipherText)
 }
