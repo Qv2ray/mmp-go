@@ -17,3 +17,5 @@
 # IDE
 .idea
 .vscode
+
+*_bak.json

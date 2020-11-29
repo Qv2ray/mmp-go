@@ -31,6 +31,7 @@ func ListenTCP(group *Group) (err error) {
 	}
 }
 
+// encapsulating a semantic type
 type UserContext linklist.Linklist
 
 func NewUserContext(servers []Server) *UserContext {
@@ -56,15 +57,14 @@ func handleConn(conn net.Conn, group *Group) error {
 	if err != nil {
 		return fmt.Errorf("handleConn readfull error: %v", err)
 	}
+
+	// get user's context (preference)
 	userIdent, _, _ := net.SplitHostPort(conn.RemoteAddr().String())
-	var userContext *UserContext
-	nodeUserContext := group.UserContextPool.Get(userIdent)
-	if nodeUserContext == nil {
-		userContext = NewUserContext(group.Servers)
-		group.UserContextPool.Insert(userIdent, userContext)
-	} else {
-		userContext = nodeUserContext.Val.(*UserContext)
-	}
+	userContext := group.UserContextPool.GetOrInsert(userIdent, func() (val interface{}) {
+		return NewUserContext(group.Servers)
+	}).Val.(*UserContext)
+
+	// auth every server
 	server, err := auth(buf[:], userContext)
 	if err != nil {
 		log.Fatalln(fmt.Errorf("handleConn auth error: %v", err))
@@ -72,6 +72,8 @@ func handleConn(conn net.Conn, group *Group) error {
 	if server == nil {
 		return nil
 	}
+
+	// dial and relay
 	rc, err := net.Dial("tcp", server.Target)
 	if err != nil {
 		return fmt.Errorf("handleConn dial error: %v", err)
@@ -113,6 +115,7 @@ func auth(data []byte, userContext *UserContext) (hit *Server, err error) {
 		return nil, fmt.Errorf("length of data should be no less than 50")
 	}
 	ctx := userContext.Infra()
+	// probe every server
 	for serverNode := ctx.Front(); serverNode != ctx.Tail(); serverNode = serverNode.Next() {
 		server := serverNode.Val.(*Server)
 		if probe(data, server) {

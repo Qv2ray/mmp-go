@@ -15,14 +15,30 @@ type LRU struct {
 
 func New(maxLen int) *LRU {
 	return &LRU{
-		index:  make(map[interface{}]*linklist.Node),
-		reverseIndex:  make(map[*linklist.Node]interface{}),
-		maxLen: maxLen,
-		list: linklist.NewLinklist(),
+		index:        make(map[interface{}]*linklist.Node),
+		reverseIndex: make(map[*linklist.Node]interface{}),
+		maxLen:       maxLen,
+		list:         linklist.NewLinklist(),
 	}
 }
 
+func (l *LRU) GetOrInsert(key interface{}, valFunc func() (val interface{})) *linklist.Node {
+	l.Lock()
+	defer l.Unlock()
+	node := l.get(key)
+	if node == nil {
+		return l.insert(key, valFunc())
+	}
+	return node
+}
+
 func (l *LRU) Get(key interface{}) *linklist.Node {
+	l.Lock()
+	defer l.Unlock()
+	return l.get(key)
+}
+
+func (l *LRU) get(key interface{}) *linklist.Node {
 	l.Lock()
 	defer l.Unlock()
 	v, ok := l.index[key]
@@ -33,9 +49,13 @@ func (l *LRU) Get(key interface{}) *linklist.Node {
 	return v
 }
 
-func (l *LRU) Insert(key interface{}, val interface{}) {
+func (l *LRU) Insert(key interface{}, val interface{}) *linklist.Node {
 	l.Lock()
 	defer l.Unlock()
+	return l.insert(key, val)
+}
+
+func (l *LRU) insert(key interface{}, val interface{}) *linklist.Node {
 	node := l.list.PushFront(val)
 	l.index[key] = node
 	l.reverseIndex[node] = key
@@ -46,4 +66,5 @@ func (l *LRU) Insert(key interface{}, val interface{}) {
 		delete(l.index, key)
 		delete(l.reverseIndex, back)
 	}
+	return node
 }
