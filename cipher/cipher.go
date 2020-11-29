@@ -1,4 +1,4 @@
-package main
+package cipher
 
 import (
 	"crypto/aes"
@@ -51,7 +51,7 @@ func EVPBytesToKey(password string, keyLen int) (key []byte) {
 func NewGcm(key []byte) (cipher.AEAD, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
-		panic(err.Error())
+		return nil, err
 	}
 	return cipher.NewGCM(block)
 }

@@ -1,9 +1,11 @@
-package main
+package tcp
 
 import (
 	"crypto/sha1"
 	"fmt"
-	"github.com/Qv2ray/shadomplexer-go/common/linklist"
+	"github.com/Qv2ray/shadomplexer-go/cipher"
+	"github.com/Qv2ray/shadomplexer-go/config"
+	"github.com/Qv2ray/shadomplexer-go/dispatcher"
 	"golang.org/x/crypto/hkdf"
 	"io"
 	"log"
@@ -11,19 +13,35 @@ import (
 	"time"
 )
 
-func ListenTCP(group *Group) (err error) {
-	l, err := net.Listen("tcp", fmt.Sprintf(":%d", group.Port))
+func init() {
+	dispatcher.Register("tcp", New)
+}
+
+
+type Dispatcher struct {
+	group *config.Group
+	l     net.Listener
+}
+
+func New(g *config.Group) (d dispatcher.Dispatcher) {
+	return &Dispatcher{group: g}
+}
+
+func (d *Dispatcher) Listen() (err error) {
+	d.l, err = net.Listen("tcp", fmt.Sprintf(":%d", d.group.Port))
 	if err != nil {
 		return
 	}
-	defer l.Close()
+	defer d.l.Close()
+	log.Printf("[tcp] listen on :%v\n", d.group.Port)
 	for {
-		conn, err := l.Accept()
+		conn, err := d.l.Accept()
 		if err != nil {
+			log.Printf("[error] ReadFrom: %v", err)
 			continue
 		}
 		go func() {
-			err := handleConn(conn, group)
+			err := d.handleConn(conn)
 			if err != nil {
 				log.Println(err)
 			}
@@ -31,22 +49,11 @@ func ListenTCP(group *Group) (err error) {
 	}
 }
 
-// encapsulating a semantic type
-type UserContext linklist.Linklist
-
-func NewUserContext(servers []Server) *UserContext {
-	ctx := linklist.NewLinklist()
-	for i := range servers {
-		ctx.PushBack(&servers[i])
-	}
-	return (*UserContext)(ctx)
+func (d *Dispatcher) Close() (err error) {
+	return d.l.Close()
 }
 
-func (ctx *UserContext) Infra() *linklist.Linklist {
-	return (*linklist.Linklist)(ctx)
-}
-
-func handleConn(conn net.Conn, group *Group) error {
+func (d *Dispatcher) handleConn(conn net.Conn) error {
 	/*
 	   https://github.com/shadowsocks/shadowsocks-org/blob/master/whitepaper/whitepaper.md
 	*/
@@ -55,19 +62,19 @@ func handleConn(conn net.Conn, group *Group) error {
 	var buf [32 + 2 + 16]byte
 	n, err := io.ReadFull(conn, buf[:])
 	if err != nil {
-		return fmt.Errorf("handleConn readfull error: %v", err)
+		return fmt.Errorf("[tcp] handleConn readfull error: %v", err)
 	}
 
 	// get user's context (preference)
 	userIdent, _, _ := net.SplitHostPort(conn.RemoteAddr().String())
-	userContext := group.UserContextPool.GetOrInsert(userIdent, func() (val interface{}) {
-		return NewUserContext(group.Servers)
-	}).Val.(*UserContext)
+	userContext := d.group.UserContextPool.GetOrInsert(userIdent, func() (val interface{}) {
+		return config.NewUserContext(d.group.Servers)
+	}).Val.(*config.UserContext)
 
 	// auth every server
-	server, err := auth(buf[:], userContext)
+	server, err := d.Auth(buf[:], userContext)
 	if err != nil {
-		log.Fatalln(fmt.Errorf("handleConn auth error: %v", err))
+		return fmt.Errorf("[tcp] handleConn auth error: %v", err)
 	}
 	if server == nil {
 		return nil
@@ -76,18 +83,18 @@ func handleConn(conn net.Conn, group *Group) error {
 	// dial and relay
 	rc, err := net.Dial("tcp", server.Target)
 	if err != nil {
-		return fmt.Errorf("handleConn dial error: %v", err)
+		return fmt.Errorf("[tcp] handleConn dial error: %v", err)
 	}
 	_, err = rc.Write(buf[:n])
 	if err != nil {
-		return fmt.Errorf("handleConn write error: %v", err)
+		return fmt.Errorf("[tcp] handleConn write error: %v", err)
 	}
 	log.Printf("[tcp] %s <-> %s <-> %s ", conn.RemoteAddr(), conn.LocalAddr(), rc.RemoteAddr())
 	if err := relay(conn, rc); err != nil {
 		if err, ok := err.(net.Error); ok && err.Timeout() {
 			return nil // ignore i/o timeout
 		}
-		return fmt.Errorf("handleConn relay error: %v", err)
+		return fmt.Errorf("[tcp] handleConn relay error: %v", err)
 	}
 	return nil
 }
@@ -110,14 +117,14 @@ func relay(lc, rc net.Conn) error {
 	return <-ch
 }
 
-func auth(data []byte, userContext *UserContext) (hit *Server, err error) {
+func (d *Dispatcher) Auth(data []byte, userContext *config.UserContext) (hit *config.Server, err error) {
 	if len(data) < 50 {
-		return nil, fmt.Errorf("length of data should be no less than 50")
+		return nil, nil //fmt.Errorf("length of data should be no less than 50")
 	}
 	ctx := userContext.Infra()
 	// probe every server
 	for serverNode := ctx.Front(); serverNode != ctx.Tail(); serverNode = serverNode.Next() {
-		server := serverNode.Val.(*Server)
+		server := serverNode.Val.(*config.Server)
 		if probe(data, server) {
 			ctx.Promote(serverNode)
 			return server, nil
@@ -126,9 +133,9 @@ func auth(data []byte, userContext *UserContext) (hit *Server, err error) {
 	return nil, nil
 }
 
-func probe(data []byte, server *Server) bool {
+func probe(data []byte, server *config.Server) bool {
 	//[salt][encrypted payload length][length tag][encrypted payload][payload tag]
-	conf := CiphersConf[server.Method]
+	conf := cipher.CiphersConf[server.Method]
 
 	salt := data[:conf.SaltLen]
 	cipherText := data[conf.SaltLen : conf.SaltLen+2+conf.TagLen]
@@ -142,10 +149,8 @@ func probe(data []byte, server *Server) bool {
 	)
 	io.ReadFull(kdf, subKey)
 
-	nonce := make([]byte, conf.NonceLen) // equals to zero
-
-	cipher, _ := conf.NewCipher(subKey)
+	ciph, _ := conf.NewCipher(subKey)
 	buf := make([]byte, 2)
-	_, err := cipher.Open(buf, nonce, cipherText, nil)
+	_, err := ciph.Open(buf, dispatcher.ZeroNonce[:conf.NonceLen], cipherText, nil)
 	return err == nil
 }

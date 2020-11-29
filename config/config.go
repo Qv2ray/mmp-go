@@ -1,8 +1,9 @@
-package main
+package config
 
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/Qv2ray/shadomplexer-go/cipher"
 	"github.com/Qv2ray/shadomplexer-go/common/lru"
 	"io/ioutil"
 	"log"
@@ -47,7 +48,7 @@ func build(config *Config) {
 		g.UserContextPool = lru.New(lruSize)
 		for j := range config.Groups[i].Servers {
 			s := &config.Groups[i].Servers[j]
-			s.MasterKey = EVPBytesToKey(s.Password, CiphersConf[s.Method].KeyLen)
+			s.MasterKey = cipher.EVPBytesToKey(s.Password, cipher.CiphersConf[s.Method].KeyLen)
 		}
 	}
 }
@@ -55,7 +56,7 @@ func build(config *Config) {
 func checkMethodSupported(config *Config) error {
 	for _, g := range config.Groups {
 		for _, s := range g.Servers {
-			if _, ok := CiphersConf[s.Method]; !ok {
+			if _, ok := cipher.CiphersConf[s.Method]; !ok {
 				return fmt.Errorf("unsupported method: %v", s.Method)
 			}
 		}

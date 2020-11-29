@@ -1,23 +1,41 @@
 package main
 
 import (
+	"github.com/Qv2ray/shadomplexer-go/config"
+	"github.com/Qv2ray/shadomplexer-go/dispatcher"
+	_ "github.com/Qv2ray/shadomplexer-go/dispatcher/tcp"
+	_ "github.com/Qv2ray/shadomplexer-go/dispatcher/udp"
 	"log"
 	"sync"
 )
 
+var protocols = [...]string{"tcp", "udp"}
+
 func main() {
-	config := GetConfig()
+	conf := config.GetConfig()
 	var wg sync.WaitGroup
-	for i := range config.Groups {
+	for i := range conf.Groups {
 		wg.Add(1)
-		go func(group *Group) {
-			log.Printf("listen on :%v\n", group.Port)
-			err := ListenTCP(group)
+		go func(group *config.Group) {
+			err := listen(group, protocols[:])
 			if err != nil {
 				log.Fatalln(err)
 			}
 			wg.Done()
-		}(&config.Groups[i])
+		}(&conf.Groups[i])
 	}
 	wg.Wait()
+}
+
+func listen(group *config.Group, protocols []string) error {
+	ch := make(chan error, len(protocols))
+	for _, protocol := range protocols {
+		d, _ := dispatcher.New(protocol, group)
+		go func() {
+			var err error
+			err = d.Listen()
+			ch <- err
+		}()
+	}
+	return <-ch
 }

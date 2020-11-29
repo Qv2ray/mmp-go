@@ -39,8 +39,6 @@ func (l *LRU) Get(key interface{}) *linklist.Node {
 }
 
 func (l *LRU) get(key interface{}) *linklist.Node {
-	l.Lock()
-	defer l.Unlock()
 	v, ok := l.index[key]
 	if !ok {
 		return nil
