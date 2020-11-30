@@ -80,16 +80,33 @@ func (d *Dispatcher) handleConn(laddr net.Addr, buf []byte, n int) (err error) {
 
 func (d *Dispatcher) getUCPConn(userIdent string, target string) (rc *net.UDPConn, err error) {
 	d.nm.Lock()
-	defer d.nm.Unlock()
+	var conn *UDPConn
 	var ok bool
-	// TODO: optimize
-	if rc, ok = d.nm.Get(userIdent); !ok {
+	if conn, ok = d.nm.Get(userIdent); !ok {
+		d.nm.Insert(userIdent, nil)
+		d.nm.Unlock()
 		rconn, err := net.Dial("udp", target)
 		if err != nil {
+			d.nm.Lock()
+			d.nm.Remove(userIdent) // close channel to inform that establishment ends
+			d.nm.Unlock()
 			return nil, fmt.Errorf("getUCPConn dial error: %v", err)
 		}
 		rc = rconn.(*net.UDPConn)
+		d.nm.Lock()
+		d.nm.Remove(userIdent) // close channel to inform that establishment ends
 		d.nm.Insert(userIdent, rc)
+		d.nm.Unlock()
+	} else {
+		d.nm.Unlock()
+		<-conn.Establishing
+		if conn.UDPConn == nil {
+			// establishment failed
+			return d.getUCPConn(userIdent, target)
+		} else {
+			// establishment succeeded
+			rc = conn.UDPConn
+		}
 	}
 	return rc, nil
 }
