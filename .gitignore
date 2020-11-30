@@ -4,6 +4,7 @@
 *.dll
 *.so
 *.dylib
+/shadomplexer-go
 
 # Test binary, built with `go test -c`
 *.test

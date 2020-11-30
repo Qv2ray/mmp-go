@@ -2,6 +2,7 @@ package config
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"github.com/Qv2ray/shadomplexer-go/cipher"
 	"github.com/Qv2ray/shadomplexer-go/common/lru"
@@ -66,8 +67,11 @@ func checkMethodSupported(config *Config) error {
 
 func GetConfig() *Config {
 	once.Do(func() {
+		filename := flag.String("conf", "example.json", "config file path")
+		flag.Parse()
+
 		config = new(Config)
-		b, err := ioutil.ReadFile("example.json")
+		b, err := ioutil.ReadFile(*filename)
 		if err != nil {
 			log.Fatalln(err)
 		}
