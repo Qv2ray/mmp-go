@@ -66,7 +66,7 @@ func (d *Dispatcher) handleConn(laddr net.Addr, buf []byte, n int) (err error) {
 	}
 
 	// relay
-	log.Printf("[udp] %s <-> %s <-> %s ", laddr.String(), d.c.LocalAddr(), rc.RemoteAddr())
+	log.Printf("[udp] %s <-> %s <-> %s", laddr.String(), d.c.LocalAddr(), rc.RemoteAddr())
 	go func() {
 		_ = relay(d.c, laddr, rc)
 		rc.Close()
@@ -91,7 +91,7 @@ func (d *Dispatcher) getUCPConn(userIdent string, target string) (rc *net.UDPCon
 		rc = rconn.(*net.UDPConn)
 		d.nm.Insert(userIdent, rc)
 	}
-	return nil, nil
+	return rc, nil
 }
 
 func relay(dst *net.UDPConn, laddr net.Addr, src *net.UDPConn) (err error) {

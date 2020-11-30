@@ -1,35 +1,42 @@
 package config
 
 import (
-	"github.com/Qv2ray/shadomplexer-go/common/linklist"
 	"github.com/Qv2ray/shadomplexer-go/common/lru"
+	"github.com/Qv2ray/shadomplexer-go/common/lrulist"
 	"net"
+	"time"
 )
 
-// encapsulating a semantic type
-type UserContext linklist.Linklist
+// encapsulating semantic types
+type UserContext lrulist.LruList
 type UserContextPool lru.LRU
 
 func NewUserContext(servers []Server) *UserContext {
-	ctx := linklist.NewLinklist()
+	list := make([]interface{}, len(servers))
 	for i := range servers {
-		ctx.PushBack(&servers[i])
+		list[i] = servers[i]
 	}
+	ctx := lrulist.NewWithList(10*time.Second, lrulist.InsertToFront, list)
 	return (*UserContext)(ctx)
 }
 
-func (ctx *UserContext) Infra() *linklist.Linklist {
-	return (*linklist.Linklist)(ctx)
+func (ctx *UserContext) Infra() *lrulist.LruList {
+	return (*lrulist.LruList)(ctx)
+}
+
+func (ctx *UserContext) Close() error {
+	return ctx.Infra().Close()
 }
 
 func (ctx *UserContext) Auth(probe func(*Server) bool) (hit *Server, err error) {
-	list := ctx.Infra()
+	lruList := ctx.Infra()
+	listCopy := lruList.GetListCopy()
 	// probe every server
-	for serverNode := list.Front(); serverNode != list.Tail(); serverNode = serverNode.Next() {
-		server := serverNode.Val.(*Server)
-		if probe(server) {
-			list.Promote(serverNode)
-			return server, nil
+	for _, serverNode := range listCopy {
+		server := serverNode.Val.(Server)
+		if probe(&server) {
+			lruList.Promote(serverNode)
+			return &server, nil
 		}
 	}
 	return nil, nil
@@ -41,7 +48,11 @@ func (pool *UserContextPool) Infra() *lru.LRU {
 
 func (pool *UserContextPool) Get(addr net.Addr, servers []Server) *UserContext {
 	userIdent, _, _ := net.SplitHostPort(addr.String())
-	return pool.Infra().GetOrInsert(userIdent, func() (val interface{}) {
+	node, removed := pool.Infra().GetOrInsert(userIdent, func() (val interface{}) {
 		return NewUserContext(servers)
-	}).Val.(*UserContext)
+	})
+	if removed != nil {
+		removed.Val.(*UserContext).Close()
+	}
+	return node.Val.(*UserContext)
 }

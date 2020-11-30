@@ -20,6 +20,7 @@ func NewUDPConn(conn *net.UDPConn) *UDPConn {
 	}
 }
 
+// TODO: clean in time
 type UDPConnMapping struct {
 	nm map[string]*UDPConn
 	sync.Mutex

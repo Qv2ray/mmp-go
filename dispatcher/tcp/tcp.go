@@ -83,7 +83,7 @@ func (d *Dispatcher) handleConn(conn net.Conn) error {
 	if err != nil {
 		return fmt.Errorf("[tcp] handleConn write error: %v", err)
 	}
-	log.Printf("[tcp] %s <-> %s <-> %s ", conn.RemoteAddr(), conn.LocalAddr(), rc.RemoteAddr())
+	log.Printf("[tcp] %s <-> %s <-> %s", conn.RemoteAddr(), conn.LocalAddr(), rc.RemoteAddr())
 	if err := relay(conn, rc); err != nil {
 		if err, ok := err.(net.Error); ok && err.Timeout() {
 			return nil // ignore i/o timeout

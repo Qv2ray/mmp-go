@@ -22,14 +22,14 @@ func New(maxLen int) *LRU {
 	}
 }
 
-func (l *LRU) GetOrInsert(key interface{}, valFunc func() (val interface{})) *linklist.Node {
+func (l *LRU) GetOrInsert(key interface{}, valFunc func() (val interface{})) (inserted *linklist.Node, removed *linklist.Node) {
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
 	node := l.get(key)
 	if node == nil {
 		return l.insert(key, valFunc())
 	}
-	return node
+	return node, nil
 }
 
 func (l *LRU) Get(key interface{}) *linklist.Node {
@@ -47,22 +47,24 @@ func (l *LRU) get(key interface{}) *linklist.Node {
 	return v
 }
 
-func (l *LRU) Insert(key interface{}, val interface{}) *linklist.Node {
+func (l *LRU) Insert(key interface{}, val interface{}) (inserted *linklist.Node, removed *linklist.Node) {
 	l.mutex.Lock()
 	defer l.mutex.Unlock()
 	return l.insert(key, val)
 }
 
-func (l *LRU) insert(key interface{}, val interface{}) *linklist.Node {
+func (l *LRU) insert(key interface{}, val interface{}) (inserted *linklist.Node, removed *linklist.Node) {
 	node := l.list.PushFront(val)
+	inserted = node
 	l.index[key] = node
 	l.reverseIndex[node] = key
 	if len(l.index) > l.maxLen {
 		back := l.list.Back()
+		removed = back
 		key := l.reverseIndex[back]
 		l.list.Remove(back)
 		delete(l.index, key)
 		delete(l.reverseIndex, back)
 	}
-	return node
+	return
 }
