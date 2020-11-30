@@ -101,10 +101,10 @@ func (d *Dispatcher) getUCPConn(userIdent string, target string) (rc *net.UDPCon
 		d.nm.Unlock()
 		<-conn.Establishing
 		if conn.UDPConn == nil {
-			// establishment failed
+			// establishment ended and retrieve the result
 			return d.getUCPConn(userIdent, target)
 		} else {
-			// establishment succeeded
+			// establishment succeeded before
 			rc = conn.UDPConn
 		}
 	}
