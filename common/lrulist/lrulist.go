@@ -14,7 +14,7 @@ type Node struct {
 type LruList struct {
 	list           []*Node
 	muList         sync.Mutex
-	c              *time.Ticker
+	updateTicker   *time.Ticker
 	avg            uint32
 	max            uint32
 	insertStrategy InsertStrategy
@@ -23,14 +23,14 @@ type LruList struct {
 type InsertStrategy int
 
 const (
-	InsertToFront InsertStrategy = iota
-	InsertToAverage
+	InsertFront InsertStrategy = iota
+	InsertAverage
 )
 
 func New(updateInterval time.Duration, insertStrategy InsertStrategy) *LruList {
 	lru := &LruList{
 		insertStrategy: insertStrategy,
-		c:              time.NewTicker(updateInterval),
+		updateTicker:   time.NewTicker(updateInterval),
 	}
 	go lru.updater()
 	return lru
@@ -47,7 +47,7 @@ func NewWithList(updateInterval time.Duration, insertStrategy InsertStrategy, li
 }
 
 func (l *LruList) Close() (err error) {
-	l.c.Stop()
+	l.updateTicker.Stop()
 	return nil
 }
 
@@ -66,14 +66,14 @@ func (l *LruList) Promote(node *Node) {
 
 func (l *LruList) Insert(val interface{}) *Node {
 	node := &Node{Val: val}
-	if l.insertStrategy == InsertToFront {
+	if l.insertStrategy == InsertFront {
 		node.weight = l.max + 1
 	} else {
 		node.weight = l.avg + 1
 	}
 	l.muList.Lock()
 	defer l.muList.Unlock()
-	var insertBefore int
+	insertBefore := len(l.list)
 	for i := range l.list {
 		if l.list[i].weight < node.weight {
 			insertBefore = i

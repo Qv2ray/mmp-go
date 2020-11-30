@@ -16,7 +16,7 @@ func NewUserContext(servers []Server) *UserContext {
 	for i := range servers {
 		list[i] = servers[i]
 	}
-	ctx := lrulist.NewWithList(10*time.Second, lrulist.InsertToFront, list)
+	ctx := lrulist.NewWithList(10*time.Second, lrulist.InsertFront, list)
 	return (*UserContext)(ctx)
 }
 

@@ -4,21 +4,9 @@ import (
 	"sort"
 )
 
-type SortableList []*Node
-
-func (l SortableList) Len() int {
-	return len(l)
-}
-func (l SortableList) Less(i, j int) bool {
-	return l[i].weight > l[j].weight
-}
-func (l SortableList) Swap(i, j int) {
-	l[i], l[j] = l[j], l[i]
-}
-
 func (l *LruList) updater() {
 	// every interval time, updater divide counts by 2
-	for range l.c.C {
+	for range l.updateTicker.C {
 		l.muList.Lock()
 		sort.SliceStable(l.list, func(i, j int) bool {
 			return l.list[i].weight > l.list[j].weight

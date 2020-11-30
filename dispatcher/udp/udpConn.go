@@ -20,16 +20,36 @@ func NewUDPConn(conn *net.UDPConn) *UDPConn {
 	}
 }
 
-// TODO: clean in time
 type UDPConnMapping struct {
 	nm map[string]*UDPConn
 	sync.Mutex
+	cleanTicker *time.Ticker
+}
+
+func (m *UDPConnMapping) cleaner() {
+	for t := range m.cleanTicker.C {
+		m.Lock()
+		for k, v := range m.nm {
+			if t.Sub(v.lastVisitTime) > timeout {
+				delete(m.nm, k)
+			}
+		}
+		m.Unlock()
+	}
 }
 
 func NewUDPConnMapping() *UDPConnMapping {
-	return &UDPConnMapping{
-		nm: make(map[string]*UDPConn),
+	m := &UDPConnMapping{
+		nm:          make(map[string]*UDPConn),
+		cleanTicker: time.NewTicker(timeout),
 	}
+	go m.cleaner()
+	return m
+}
+
+func (m *UDPConnMapping) Close() error {
+	m.cleanTicker.Stop()
+	return nil
 }
 
 func (m *UDPConnMapping) Get(key string) (conn *net.UDPConn, ok bool) {
