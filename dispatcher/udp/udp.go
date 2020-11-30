@@ -3,6 +3,7 @@ package udp
 import (
 	"fmt"
 	"github.com/Qv2ray/shadomplexer-go/cipher"
+	"github.com/Qv2ray/shadomplexer-go/common/leakybuf"
 	"github.com/Qv2ray/shadomplexer-go/config"
 	"github.com/Qv2ray/shadomplexer-go/dispatcher"
 	"log"
@@ -13,8 +14,6 @@ import (
 func init() {
 	dispatcher.Register("udp", New)
 }
-
-const UDPBufSize = 64 * 1024
 
 type Dispatcher struct {
 	group *config.Group
@@ -34,10 +33,11 @@ func (d *Dispatcher) Listen() (err error) {
 	defer d.c.Close()
 	log.Printf("[udp] listen on :%v\n", d.group.Port)
 	for {
-		buf := make([]byte, UDPBufSize)
+		buf := leakybuf.Get(leakybuf.UDPBufSize)
 		n, laddr, err := d.c.ReadFrom(buf)
 		if err != nil {
 			log.Printf("[error] ReadFrom: %v", err)
+			leakybuf.Put(buf)
 			continue
 		}
 		go func() {
@@ -45,6 +45,7 @@ func (d *Dispatcher) Listen() (err error) {
 			if err != nil {
 				log.Println(err)
 			}
+			leakybuf.Put(buf)
 		}()
 	}
 }
@@ -113,7 +114,8 @@ func (d *Dispatcher) getUCPConn(userIdent string, target string) (rc *net.UDPCon
 
 func relay(dst *net.UDPConn, laddr net.Addr, src *net.UDPConn) (err error) {
 	var n int
-	buf := make([]byte, UDPBufSize)
+	buf := leakybuf.Get(leakybuf.UDPBufSize)
+	defer leakybuf.Put(buf)
 	_ = src.SetDeadline(time.Now().Add(timeout))
 	for {
 		n, _, err = src.ReadFrom(buf)

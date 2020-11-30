@@ -5,6 +5,7 @@ import (
 	"crypto/cipher"
 	"crypto/md5"
 	"crypto/sha1"
+	"github.com/Qv2ray/shadomplexer-go/common/leakybuf"
 	"golang.org/x/crypto/chacha20poly1305"
 	"golang.org/x/crypto/hkdf"
 	"io"
@@ -20,8 +21,11 @@ type CipherConf struct {
 	NewCipher func(key []byte) (cipher.AEAD, error)
 }
 
+var TwoSizeBuf [2]byte
+
 func (conf *CipherConf) Verify(masterKey []byte, salt []byte, cipherText []byte) bool {
-	subKey := make([]byte, conf.KeyLen)
+	subKey := leakybuf.Get(conf.KeyLen)
+	defer leakybuf.Put(subKey)
 	kdf := hkdf.New(
 		sha1.New,
 		masterKey,
@@ -31,7 +35,13 @@ func (conf *CipherConf) Verify(masterKey []byte, salt []byte, cipherText []byte)
 	io.ReadFull(kdf, subKey)
 
 	ciph, _ := conf.NewCipher(subKey)
-	buf := make([]byte, 2)
+	var buf []byte
+	if len(cipherText) == 2+ciph.Overhead() {
+		buf = TwoSizeBuf[:]
+	}else{
+		buf = leakybuf.Get(leakybuf.UDPBufSize)
+		defer leakybuf.Put(buf)
+	}
 	_, err := ciph.Open(buf, ZeroNonce[:conf.NonceLen], cipherText, nil)
 	return err == nil
 }
