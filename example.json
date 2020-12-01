@@ -1,0 +1,56 @@
+{
+  "lruSize": 30,
+  "groups": [
+    {
+      "lruSize": 50,
+      "port": 1090,
+      "servers": [
+        {
+          "target": "test2.com:8081",
+          "method": "chacha20-ietf-poly1305",
+          "password": "test"
+        },
+        {
+          "target": "test.com:18080",
+          "method": "chacha20-ietf-poly1305",
+          "password": "test1"
+        },
+        {
+          "target": "test3.com:18080",
+          "method": "aes-128-gcm",
+          "password": "test2"
+        }
+      ]
+    },
+    {
+      "port": 1091,
+      "servers": [
+        {
+          "target": "127.0.0.1:1083",
+          "method": "chacha20-ietf-poly1305",
+          "password": "hello, world!"
+        },
+        {
+          "target": "127.0.0.1:1084",
+          "method": "aes-128-gcm",
+          "password": "aaabbbcccddd"
+        }
+      ]
+    },
+    {
+      "port": 1100,
+      "servers": [
+        {
+          "target": "127.0.0.1:1099",
+          "method": "chacha20-ietf-poly1305",
+          "password": "password"
+        },
+        {
+          "target": "127.0.0.1:1084",
+          "method": "aes-128-gcm",
+          "password": "aaabbbcccddd"
+        }
+      ]
+    }
+  ]
+}
