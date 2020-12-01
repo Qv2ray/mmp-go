@@ -35,10 +35,13 @@ func (conf *CipherConf) Verify(masterKey []byte, salt []byte, cipherText []byte)
 	io.ReadFull(kdf, subKey)
 
 	ciph, _ := conf.NewCipher(subKey)
+
 	var buf []byte
 	if len(cipherText) == 2+ciph.Overhead() {
+		// TCP
 		buf = TwoSizeBuf[:]
-	}else{
+	} else {
+		// UDP
 		buf = leakybuf.Get(leakybuf.UDPBufSize)
 		defer leakybuf.Put(buf)
 	}
