@@ -11,7 +11,12 @@ import (
 	"io"
 )
 
-var ZeroNonce [128]byte
+var CiphersConf = map[string]CipherConf{
+	"chacha20-ietf-poly1305": {KeyLen: 32, SaltLen: 32, NonceLen: 12, TagLen: 16, NewCipher: chacha20poly1305.New},
+	"chacha20-poly1305":      {KeyLen: 32, SaltLen: 32, NonceLen: 12, TagLen: 16, NewCipher: chacha20poly1305.New},
+	"aes-256-gcm":            {KeyLen: 32, SaltLen: 32, NonceLen: 12, TagLen: 16, NewCipher: NewGcm},
+	"aes-128-gcm":            {KeyLen: 16, SaltLen: 16, NonceLen: 12, TagLen: 16, NewCipher: NewGcm},
+}
 
 type CipherConf struct {
 	KeyLen    int
@@ -21,7 +26,11 @@ type CipherConf struct {
 	NewCipher func(key []byte) (cipher.AEAD, error)
 }
 
-var TwoSizeBuf [2]byte
+const TCPMaxTagSize = 16
+const MaxNonceSize = 12
+
+var ZeroNonce [MaxNonceSize]byte
+var TCPReuseDstBuf [2 + TCPMaxTagSize]byte
 
 func (conf *CipherConf) Verify(masterKey []byte, salt []byte, cipherText []byte) bool {
 	subKey := leakybuf.Get(conf.KeyLen)
@@ -39,7 +48,7 @@ func (conf *CipherConf) Verify(masterKey []byte, salt []byte, cipherText []byte)
 	var buf []byte
 	if len(cipherText) == 2+ciph.Overhead() {
 		// TCP
-		buf = TwoSizeBuf[:]
+		buf = TCPReuseDstBuf[:]
 	} else {
 		// UDP
 		buf = leakybuf.Get(leakybuf.UDPBufSize)
@@ -47,13 +56,6 @@ func (conf *CipherConf) Verify(masterKey []byte, salt []byte, cipherText []byte)
 	}
 	_, err := ciph.Open(buf, ZeroNonce[:conf.NonceLen], cipherText, nil)
 	return err == nil
-}
-
-var CiphersConf = map[string]CipherConf{
-	"chacha20-ietf-poly1305": {KeyLen: 32, SaltLen: 32, NonceLen: 12, TagLen: 16, NewCipher: chacha20poly1305.New},
-	"chacha20-poly1305":      {KeyLen: 32, SaltLen: 32, NonceLen: 12, TagLen: 16, NewCipher: chacha20poly1305.New},
-	"aes-256-gcm":            {KeyLen: 32, SaltLen: 32, NonceLen: 12, TagLen: 16, NewCipher: NewGcm},
-	"aes-128-gcm":            {KeyLen: 16, SaltLen: 16, NonceLen: 12, TagLen: 16, NewCipher: NewGcm},
 }
 
 func MD5Sum(d []byte) []byte {
