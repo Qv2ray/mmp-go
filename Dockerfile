@@ -9,7 +9,7 @@ ADD . .
 ENV GO111MODULE=on
 ENV GOPROXY=https://goproxy.io
 COPY --from=version /build/version ./
-RUN export VERSION=$(cat ./version) && GO_ENABLED=0 go build -ldflags '-X github.com/v2rayA/v2rayA/global.Version=${VERSION} -s -w -extldflags "-static"' -o mmp-go .
+RUN export VERSION=$(cat ./version) && CGO_ENABLED=0 go build -ldflags '-X github.com/Qv2ray/mmp-go/config.Version=${VERSION} -s -w -extldflags "-static"' -o mmp-go .
 
 FROM alpine
 COPY --from=builder /build/mmp-go /usr/bin/

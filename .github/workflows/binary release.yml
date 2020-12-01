@@ -104,12 +104,12 @@ jobs:
         run: |
           v=$(echo ${{ steps.get_version.outputs.VERSION }} | cut -c2-)
           mkdir -p build_assets
-          go build -v -o build_assets/mmp-go -trimpath -ldflags "-X github.com/Qv2ray/mmp-go/global.Version=$v -s -w -buildid=" .
+          go build -v -o build_assets/mmp-go -trimpath -ldflags "-X github.com/Qv2ray/mmp-go/config.Version=$v -s -w -buildid=" .
       - name: Build Windows wmmp-go
         if: matrix.goos == 'windows'
         run: |
           v=$(echo ${{ steps.get_version.outputs.VERSION }} | cut -c2-)
-          go build -v -o build_assets/wmmp-go.exe -trimpath -ldflags "-X github.com/Qv2ray/mmp-go/global.Version=$v -s -w -H windowsgui -buildid=" .
+          go build -v -o build_assets/wmmp-go.exe -trimpath -ldflags "-X github.com/Qv2ray/mmp-go/config.Version=$v -s -w -H windowsgui -buildid=" .
           cd ./build_assets || exit 1
           mv mmp-go mmp-go.exe
       - name: Prepare package
