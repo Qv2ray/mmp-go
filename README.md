@@ -13,6 +13,12 @@ Consider the following:
 > \- 草，这破 NAT 🐔怎么就俩端口？<br/>
 > \- mmp，go！<br/>
 
+```bash
+                                                   |------> SS Server1
+Client --> Single Port --> Validator / Multiplexer |------> SS Server2
+                                                   |------> SS Server3
+```
+
 ### Usage
 
 ```shell
