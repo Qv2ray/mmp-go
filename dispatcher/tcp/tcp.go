@@ -2,9 +2,9 @@ package tcp
 
 import (
 	"fmt"
-	"github.com/Qv2ray/shadomplexer-go/cipher"
-	"github.com/Qv2ray/shadomplexer-go/config"
-	"github.com/Qv2ray/shadomplexer-go/dispatcher"
+	"github.com/Qv2ray/mmp-go/cipher"
+	"github.com/Qv2ray/mmp-go/config"
+	"github.com/Qv2ray/mmp-go/dispatcher"
 	"io"
 	"log"
 	"net"

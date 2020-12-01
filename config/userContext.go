@@ -1,8 +1,8 @@
 package config
 
 import (
-	"github.com/Qv2ray/shadomplexer-go/common/lru"
-	"github.com/Qv2ray/shadomplexer-go/common/lrulist"
+	"github.com/Qv2ray/mmp-go/common/lru"
+	"github.com/Qv2ray/mmp-go/common/lrulist"
 	"net"
 	"time"
 )

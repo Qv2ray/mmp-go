@@ -1,7 +1,7 @@
 package lru
 
 import (
-	"github.com/Qv2ray/shadomplexer-go/common/linklist"
+	"github.com/Qv2ray/mmp-go/common/linklist"
 	"sync"
 )
 

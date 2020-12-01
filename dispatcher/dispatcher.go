@@ -1,7 +1,7 @@
 package dispatcher
 
 import (
-	"github.com/Qv2ray/shadomplexer-go/config"
+	"github.com/Qv2ray/mmp-go/config"
 	"sync"
 )
 

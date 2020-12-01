@@ -5,7 +5,7 @@ import (
 	"crypto/cipher"
 	"crypto/md5"
 	"crypto/sha1"
-	"github.com/Qv2ray/shadomplexer-go/common/leakybuf"
+	"github.com/Qv2ray/mmp-go/common/leakybuf"
 	"golang.org/x/crypto/chacha20poly1305"
 	"golang.org/x/crypto/hkdf"
 	"io"

@@ -1,10 +1,10 @@
 package main
 
 import (
-	"github.com/Qv2ray/shadomplexer-go/config"
-	"github.com/Qv2ray/shadomplexer-go/dispatcher"
-	_ "github.com/Qv2ray/shadomplexer-go/dispatcher/tcp"
-	_ "github.com/Qv2ray/shadomplexer-go/dispatcher/udp"
+	"github.com/Qv2ray/mmp-go/config"
+	"github.com/Qv2ray/mmp-go/dispatcher"
+	_ "github.com/Qv2ray/mmp-go/dispatcher/tcp"
+	_ "github.com/Qv2ray/mmp-go/dispatcher/udp"
 	"log"
 	"sync"
 )

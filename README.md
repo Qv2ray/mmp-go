@@ -7,6 +7,14 @@ Mega Multiplexer, port mutiplexer for shadowsocks, supports AEAD methods only.
 > \- ？<br/>
 > \- ？？？
 
+### Usage
+
+```shell
+mmp-go -conf example.json
+```
+
+Refer to `example.json`
+
 ### AEAD methods supported
 
 - chacha20-ietf-poly1305 (chacha20-poly1305)

@@ -1,4 +1,4 @@
-module github.com/Qv2ray/shadomplexer-go
+module github.com/Qv2ray/mmp-go
 
 go 1.15
 
