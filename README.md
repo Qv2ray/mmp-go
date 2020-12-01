@@ -1,6 +1,11 @@
 # mmp-go
-
 Mega Multiplexer, port mutiplexer for shadowsocks, supports AEAD methods only.
+
+### Intro
+> \- 草，这破 NAT 🐔怎么就俩端口？<br/>
+> \- mmp，go！<br/>
+> \- ？<br/>
+> \- ？？？
 
 ### AEAD methods supported
 
