@@ -10,6 +10,7 @@ Mega Multiplexer, port mutiplexer for shadowsocks, supports AEAD methods only.
 ### Usage
 
 ```shell
+go get -u github.com/Qv2ray/mmp-go
 mmp-go -conf example.json
 ```
 
