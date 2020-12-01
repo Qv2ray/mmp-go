@@ -42,16 +42,32 @@ func build(config *Config) {
 	}
 	for i := range config.Groups {
 		g := &config.Groups[i]
-		lruSize := g.LRUSize
-		if lruSize == 0 {
-			lruSize = globalLRUSize
-		}
-		g.UserContextPool = (*UserContextPool)(lru.New(lruSize))
-		for j := range config.Groups[i].Servers {
-			s := &config.Groups[i].Servers[j]
-			s.MasterKey = cipher.EVPBytesToKey(s.Password, cipher.CiphersConf[s.Method].KeyLen)
-		}
+		buildUserContextPool(g, globalLRUSize)
+		buildMasterKeys(g.Servers)
 	}
+}
+func buildMasterKeys(servers []Server) {
+	for j := range servers {
+		s := &servers[j]
+		s.MasterKey = cipher.EVPBytesToKey(s.Password, cipher.CiphersConf[s.Method].KeyLen)
+	}
+}
+func buildUserContextPool(g *Group, globalLRUSize int) {
+	lruSize := g.LRUSize
+	if lruSize == 0 {
+		lruSize = globalLRUSize
+	}
+	g.UserContextPool = (*UserContextPool)(lru.New(lruSize))
+}
+
+func check(config *Config) (err error) {
+	if err = checkMethodSupported(config); err != nil {
+		return
+	}
+	if err = checkDiverseCombinations(config.Groups); err != nil {
+		return
+	}
+	return
 }
 
 func checkMethodSupported(config *Config) error {
@@ -59,6 +75,25 @@ func checkMethodSupported(config *Config) error {
 		for _, s := range g.Servers {
 			if _, ok := cipher.CiphersConf[s.Method]; !ok {
 				return fmt.Errorf("unsupported method: %v", s.Method)
+			}
+		}
+	}
+	return nil
+}
+func checkDiverseCombinations(groups []Group) error {
+	type methodPasswd struct {
+		method string
+		passwd string
+	}
+	for _, g := range groups {
+		m := make(map[methodPasswd]struct{})
+		for _, s := range g.Servers {
+			mp := methodPasswd{
+				method: s.Method,
+				passwd: s.Password,
+			}
+			if _, exists := m[mp]; exists {
+				return fmt.Errorf("make sure combinantions of method and password in the same group are diverse. counterexample: (%v,%v)", mp.method, mp.passwd)
 			}
 		}
 	}
@@ -79,7 +114,7 @@ func GetConfig() *Config {
 		if err != nil {
 			log.Fatalln(err)
 		}
-		if err = checkMethodSupported(config); err != nil {
+		if err = check(config); err != nil {
 			log.Fatalln(err)
 		}
 		build(config)
