@@ -1,11 +1,17 @@
 # mmp-go
+
 Mega Multiplexer, port mutiplexer for shadowsocks, supports AEAD methods only.
 
 ### Intro
+
+You can use mmp-go to reuse single port to forward to multiple shadowsocks servers.
+
+It is suitable for relay servers with a limited number of ports.
+
+Consider the following:
+
 > \- 草，这破 NAT 🐔怎么就俩端口？<br/>
 > \- mmp，go！<br/>
-> \- ？<br/>
-> \- ？？？
 
 ### Usage
 

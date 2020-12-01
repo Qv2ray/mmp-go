@@ -1,24 +1,17 @@
 {
-  "lruSize": 30,
   "groups": [
     {
-      "lruSize": 50,
       "port": 1090,
       "servers": [
         {
-          "target": "test2.com:8081",
+          "target": "45.10.10.10:8081",
           "method": "chacha20-ietf-poly1305",
-          "password": "test"
+          "password": "mypassword"
         },
         {
-          "target": "test.com:18080",
-          "method": "chacha20-ietf-poly1305",
-          "password": "test1"
-        },
-        {
-          "target": "test3.com:18080",
+          "target": "jp.myss.cloudflare.com:18080",
           "method": "aes-128-gcm",
-          "password": "test2"
+          "password": "hereismypasswrod"
         }
       ]
     },
@@ -26,28 +19,13 @@
       "port": 1091,
       "servers": [
         {
-          "target": "127.0.0.1:1083",
+          "target": "91.23.5.12:1083",
           "method": "chacha20-ietf-poly1305",
           "password": "hello, world!"
         },
         {
-          "target": "127.0.0.1:1084",
-          "method": "aes-128-gcm",
-          "password": "aaabbbcccddd"
-        }
-      ]
-    },
-    {
-      "port": 1100,
-      "servers": [
-        {
-          "target": "127.0.0.1:1099",
-          "method": "chacha20-ietf-poly1305",
-          "password": "password"
-        },
-        {
-          "target": "127.0.0.1:1084",
-          "method": "aes-128-gcm",
+          "target": "23.77.1.12:1084",
+          "method": "aes-256-gcm",
           "password": "aaabbbcccddd"
         }
       ]
