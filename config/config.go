@@ -8,6 +8,7 @@ import (
 	"github.com/Qv2ray/mmp-go/common/lru"
 	"io/ioutil"
 	"log"
+	"os"
 	"sync"
 )
 
@@ -30,29 +31,20 @@ type Group struct {
 
 var config *Config
 var once sync.Once
+var Version = "debug"
 
 const (
 	DefaultLRUSize = 30
 )
 
-func build(config *Config) {
-	globalLRUSize := config.LRUSize
-	if globalLRUSize == 0 {
-		globalLRUSize = DefaultLRUSize
-	}
-	for i := range config.Groups {
-		g := &config.Groups[i]
-		buildUserContextPool(g, globalLRUSize)
-		buildMasterKeys(g.Servers)
-	}
-}
-func buildMasterKeys(servers []Server) {
+func (g *Group) BuildMasterKeys() {
+	servers := g.Servers
 	for j := range servers {
 		s := &servers[j]
 		s.MasterKey = cipher.EVPBytesToKey(s.Password, cipher.CiphersConf[s.Method].KeyLen)
 	}
 }
-func buildUserContextPool(g *Group, globalLRUSize int) {
+func (g *Group) BuildUserContextPool(globalLRUSize int) {
 	lruSize := g.LRUSize
 	if lruSize == 0 {
 		lruSize = globalLRUSize
@@ -60,17 +52,7 @@ func buildUserContextPool(g *Group, globalLRUSize int) {
 	g.UserContextPool = (*UserContextPool)(lru.New(lruSize))
 }
 
-func check(config *Config) (err error) {
-	if err = checkMethodSupported(config); err != nil {
-		return
-	}
-	if err = checkDiverseCombinations(config.Groups); err != nil {
-		return
-	}
-	return
-}
-
-func checkMethodSupported(config *Config) error {
+func (config *Config) CheckMethodSupported() error {
 	for _, g := range config.Groups {
 		for _, s := range g.Servers {
 			if _, ok := cipher.CiphersConf[s.Method]; !ok {
@@ -80,7 +62,8 @@ func checkMethodSupported(config *Config) error {
 	}
 	return nil
 }
-func checkDiverseCombinations(groups []Group) error {
+func (config *Config) CheckDiverseCombinations() error {
+	groups := config.Groups
 	type methodPasswd struct {
 		method string
 		passwd string
@@ -100,11 +83,36 @@ func checkDiverseCombinations(groups []Group) error {
 	return nil
 }
 
+func check(config *Config) (err error) {
+	if err = config.CheckMethodSupported(); err != nil {
+		return
+	}
+	if err = config.CheckDiverseCombinations(); err != nil {
+		return
+	}
+	return
+}
+func build(config *Config) {
+	globalLRUSize := config.LRUSize
+	if globalLRUSize == 0 {
+		globalLRUSize = DefaultLRUSize
+	}
+	for i := range config.Groups {
+		g := &config.Groups[i]
+		g.BuildUserContextPool(globalLRUSize)
+		g.BuildMasterKeys()
+	}
+}
 func GetConfig() *Config {
 	once.Do(func() {
+		version := flag.Bool("v", false, "version")
 		filename := flag.String("conf", "example.json", "config file path")
 		flag.Parse()
 
+		if *version {
+			fmt.Println(Version)
+			os.Exit(0)
+		}
 		config = new(Config)
 		b, err := ioutil.ReadFile(*filename)
 		if err != nil {

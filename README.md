@@ -28,6 +28,17 @@ mmp-go -conf example.json
 
 Refer to `example.json`
 
+**Docker**
+
+```bash
+docker run -d \
+	--restart=always \
+	--network=host \
+	-v /etc/mmp-go:/etc/mmp-go \
+	--name mmp-go \
+	mzz2017/mmp-go
+```
+
 ### AEAD methods supported
 
 - chacha20-ietf-poly1305 (chacha20-poly1305)
