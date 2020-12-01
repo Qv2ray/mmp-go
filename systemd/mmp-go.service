@@ -10,7 +10,7 @@ LimitNOFILE=102400
 CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_BIND_SERVICE CAP_NET_RAW
 AmbientCapabilities=CAP_NET_ADMIN CAP_NET_BIND_SERVICE CAP_NET_RAW
 NoNewPrivileges=true
-ExecStart=/usr/bin/mmp-go -conf /etc/mmp-go/config.conf
+ExecStart=/usr/bin/mmp-go -conf /etc/mmp-go/config.json
 
 [Install]
 WantedBy=multi-user.target
