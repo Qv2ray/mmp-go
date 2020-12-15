@@ -45,6 +45,10 @@ docker run -d \
 - aes-256-gcm
 - aes-128-gcm
 
+### TODO
+
+-[ ] fallback mechanism
+
 ### Authors
 
 - mzz2017

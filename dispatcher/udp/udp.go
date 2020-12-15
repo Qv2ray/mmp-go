@@ -59,6 +59,9 @@ func (d *Dispatcher) handleConn(laddr net.Addr, buf []byte, n int) (err error) {
 	if err != nil {
 		return fmt.Errorf("[udp] handleConn auth error: %v", err)
 	}
+	if server == nil {
+		return nil
+	}
 
 	// get conn or dial
 	rc, err := d.getUCPConn(laddr.String(), server.Target)
