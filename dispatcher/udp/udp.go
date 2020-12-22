@@ -82,31 +82,31 @@ func (d *Dispatcher) handleConn(laddr net.Addr, buf []byte, n int) (err error) {
 	return nil
 }
 
-func (d *Dispatcher) getUCPConn(userIdent string, target string) (rc *net.UDPConn, err error) {
+func (d *Dispatcher) getUCPConn(socketIdent string, target string) (rc *net.UDPConn, err error) {
 	d.nm.Lock()
 	var conn *UDPConn
 	var ok bool
-	if conn, ok = d.nm.Get(userIdent); !ok {
-		d.nm.Insert(userIdent, nil)
+	if conn, ok = d.nm.Get(socketIdent); !ok {
+		d.nm.Insert(socketIdent, nil)
 		d.nm.Unlock()
 		rconn, err := net.Dial("udp", target)
 		if err != nil {
 			d.nm.Lock()
-			d.nm.Remove(userIdent) // close channel to inform that establishment ends
+			d.nm.Remove(socketIdent) // close channel to inform that establishment ends
 			d.nm.Unlock()
 			return nil, fmt.Errorf("getUCPConn dial error: %v", err)
 		}
 		rc = rconn.(*net.UDPConn)
 		d.nm.Lock()
-		d.nm.Remove(userIdent) // close channel to inform that establishment ends
-		d.nm.Insert(userIdent, rc)
+		d.nm.Remove(socketIdent) // close channel to inform that establishment ends
+		d.nm.Insert(socketIdent, rc)
 		d.nm.Unlock()
 	} else {
 		d.nm.Unlock()
 		<-conn.Establishing
 		if conn.UDPConn == nil {
 			// establishment ended and retrieve the result
-			return d.getUCPConn(userIdent, target)
+			return d.getUCPConn(socketIdent, target)
 		} else {
 			// establishment succeeded before
 			rc = conn.UDPConn
