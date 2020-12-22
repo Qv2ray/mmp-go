@@ -63,11 +63,6 @@ func (d *Dispatcher) handleConn(conn net.Conn) error {
 	var buf [32 + 2 + 16]byte
 	n, err := io.ReadFull(conn, buf[:])
 	if err != nil {
-		// fallback
-		if len(d.group.Servers) > 0 {
-			server = &d.group.Servers[0]
-			goto relay
-		}
 		return fmt.Errorf("[tcp] handleConn readfull error: %v", err)
 	}
 
@@ -77,15 +72,13 @@ func (d *Dispatcher) handleConn(conn net.Conn) error {
 	// auth every server
 	server = d.Auth(buf[:], userContext)
 	if server == nil {
-		// fallback
-		if len(d.group.Servers) > 0 {
-			server = &d.group.Servers[0]
-			goto relay
+		if len(d.group.Servers) == 0 {
+			return nil
 		}
-		return nil
+		// fallback
+		server = &d.group.Servers[0]
 	}
 
-relay:
 	// dial and relay
 	rc, err := net.Dial("tcp", server.Target)
 	if err != nil {
