@@ -47,7 +47,7 @@ docker run -d \
 
 ### TODO
 
-- [ ] fallback mechanism
+- [ ] More fallback mechanism
 
 ### Authors
 
