@@ -28,7 +28,7 @@ func (ctx *UserContext) Close() error {
 	return ctx.Infra().Close()
 }
 
-func (ctx *UserContext) Auth(probe func(*Server) bool) (hit *Server, err error) {
+func (ctx *UserContext) Auth(probe func(*Server) bool) (hit *Server) {
 	lruList := ctx.Infra()
 	listCopy := lruList.GetListCopy()
 	// probe every server
@@ -36,10 +36,10 @@ func (ctx *UserContext) Auth(probe func(*Server) bool) (hit *Server, err error) 
 		server := serverNode.Val.(Server)
 		if probe(&server) {
 			lruList.Promote(serverNode)
-			return &server, nil
+			return &server
 		}
 	}
-	return nil, nil
+	return nil
 }
 
 func (pool *UserContextPool) Infra() *lru.LRU {

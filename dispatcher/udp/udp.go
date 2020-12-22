@@ -55,10 +55,7 @@ func (d *Dispatcher) handleConn(laddr net.Addr, buf []byte, n int) (err error) {
 	userContext := d.group.UserContextPool.Get(laddr, d.group.Servers)
 
 	// auth every server
-	server, err := d.Auth(buf[:n], userContext)
-	if err != nil {
-		return fmt.Errorf("[udp] handleConn auth error: %v", err)
-	}
+	server := d.Auth(buf[:n], userContext)
 	if server == nil {
 		return nil
 	}
@@ -132,9 +129,9 @@ func relay(dst *net.UDPConn, laddr net.Addr, src *net.UDPConn) (err error) {
 	}
 }
 
-func (d *Dispatcher) Auth(data []byte, userContext *config.UserContext) (hit *config.Server, err error) {
+func (d *Dispatcher) Auth(data []byte, userContext *config.UserContext) (hit *config.Server) {
 	if len(data) <= 32 {
-		return nil, nil //fmt.Errorf("length of data should be greater than 32")
+		return nil //fmt.Errorf("length of data should be greater than 32")
 	}
 	return userContext.Auth(func(server *config.Server) bool {
 		return probe(data, server)

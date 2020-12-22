@@ -54,26 +54,38 @@ func (d *Dispatcher) handleConn(conn net.Conn) error {
 	/*
 	   https://github.com/shadowsocks/shadowsocks-org/blob/master/whitepaper/whitepaper.md
 	*/
+	var (
+		server      *config.Server
+		userContext *config.UserContext
+	)
 	defer conn.Close()
 	//[salt][encrypted payload length][length tag][encrypted payload][payload tag]
 	var buf [32 + 2 + 16]byte
 	n, err := io.ReadFull(conn, buf[:])
 	if err != nil {
+		// fallback
+		if len(d.group.Servers) > 0 {
+			server = &d.group.Servers[0]
+			goto relay
+		}
 		return fmt.Errorf("[tcp] handleConn readfull error: %v", err)
 	}
 
 	// get user's context (preference)
-	userContext := d.group.UserContextPool.Get(conn.RemoteAddr(), d.group.Servers)
+	userContext = d.group.UserContextPool.Get(conn.RemoteAddr(), d.group.Servers)
 
 	// auth every server
-	server, err := d.Auth(buf[:], userContext)
-	if err != nil {
-		return fmt.Errorf("[tcp] handleConn auth error: %v", err)
-	}
+	server = d.Auth(buf[:], userContext)
 	if server == nil {
+		// fallback
+		if len(d.group.Servers) > 0 {
+			server = &d.group.Servers[0]
+			goto relay
+		}
 		return nil
 	}
 
+relay:
 	// dial and relay
 	rc, err := net.Dial("tcp", server.Target)
 	if err != nil {
@@ -111,9 +123,9 @@ func relay(lc, rc net.Conn) error {
 	return <-ch
 }
 
-func (d *Dispatcher) Auth(data []byte, userContext *config.UserContext) (hit *config.Server, err error) {
+func (d *Dispatcher) Auth(data []byte, userContext *config.UserContext) (hit *config.Server) {
 	if len(data) < 50 {
-		return nil, nil //fmt.Errorf("length of data should be no less than 50")
+		return nil //fmt.Errorf("length of data should be no less than 50")
 	}
 	return userContext.Auth(func(server *config.Server) bool {
 		return probe(data, server)
