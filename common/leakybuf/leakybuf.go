@@ -1,6 +1,8 @@
 package leakybuf
 
-import "sync"
+import (
+	"sync"
+)
 
 var pool = make(map[int]chan []byte)
 var mu sync.RWMutex

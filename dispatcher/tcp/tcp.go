@@ -70,7 +70,7 @@ func (d *Dispatcher) handleConn(conn net.Conn) error {
 	userContext = d.group.UserContextPool.Get(conn.RemoteAddr(), d.group.Servers)
 
 	// auth every server
-	server = d.Auth(buf[:], userContext)
+	server, _ = d.Auth(buf[:], userContext)
 	if server == nil {
 		if len(d.group.Servers) == 0 {
 			return nil
@@ -116,21 +116,22 @@ func relay(lc, rc net.Conn) error {
 	return <-ch
 }
 
-func (d *Dispatcher) Auth(data []byte, userContext *config.UserContext) (hit *config.Server) {
+func (d *Dispatcher) Auth(data []byte, userContext *config.UserContext) (hit *config.Server, content []byte) {
 	if len(data) < 50 {
-		return nil //fmt.Errorf("length of data should be no less than 50")
+		return nil, nil //fmt.Errorf("length of data should be no less than 50")
 	}
-	return userContext.Auth(func(server *config.Server) bool {
+	return userContext.Auth(func(server *config.Server) ([]byte, bool) {
 		return probe(data, server)
 	})
 }
 
-func probe(data []byte, server *config.Server) bool {
+func probe(data []byte, server *config.Server) ([]byte, bool) {
 	//[salt][encrypted payload length][length tag][encrypted payload][payload tag]
 	conf := cipher.CiphersConf[server.Method]
 
 	salt := data[:conf.SaltLen]
 	cipherText := data[conf.SaltLen : conf.SaltLen+2+conf.TagLen]
 
-	return conf.Verify(server.MasterKey, salt, cipherText)
+	content, ok := conf.Verify(server.MasterKey, salt, cipherText)
+	return content, ok
 }

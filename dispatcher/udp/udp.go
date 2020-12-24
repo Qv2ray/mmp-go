@@ -6,6 +6,7 @@ import (
 	"github.com/Qv2ray/mmp-go/common/leakybuf"
 	"github.com/Qv2ray/mmp-go/config"
 	"github.com/Qv2ray/mmp-go/dispatcher"
+	"golang.org/x/net/dns/dnsmessage"
 	"log"
 	"net"
 	"time"
@@ -50,28 +51,40 @@ func (d *Dispatcher) Listen() (err error) {
 	}
 }
 
+// select an appropriate timeout
+func selectTimeout(packet []byte) time.Duration {
+	var dmessage dnsmessage.Message
+	err := dmessage.Unpack(packet)
+	if err != nil {
+		return defaultTimeout
+	}
+	return dnsQueryTimeout
+}
+
 func (d *Dispatcher) handleConn(laddr net.Addr, buf []byte, n int) (err error) {
 	// get user's context (preference)
 	userContext := d.group.UserContextPool.Get(laddr, d.group.Servers)
 
 	// auth every server
-	server := d.Auth(buf[:n], userContext)
+	server, content := d.Auth(buf[:n], userContext)
 	if server == nil {
+		log.Println("auth fail")
 		return nil
 	}
-
+	timeout := selectTimeout(content)
 	// get conn or dial
-	rc, err := d.getUCPConn(laddr.String(), server.Target)
+	rc, isNewConn, err := d.getUCPConn(laddr.String(), server.Target, timeout)
 	if err != nil {
 		return fmt.Errorf("[udp] handleConn dial target error: %v", err)
 	}
 
 	// relay
 	log.Printf("[udp] %s <-> %s <-> %s", laddr.String(), d.c.LocalAddr(), rc.RemoteAddr())
-	go func() {
-		_ = relay(d.c, laddr, rc)
-		rc.Close()
-	}()
+	if isNewConn {
+		go func() {
+			_ = relay(d.c, laddr, rc, timeout)
+		}()
+	}
 	_, err = rc.Write(buf[:n])
 	if err != nil {
 		return fmt.Errorf("[udp] handleConn write error: %v", err)
@@ -79,44 +92,47 @@ func (d *Dispatcher) handleConn(laddr net.Addr, buf []byte, n int) (err error) {
 	return nil
 }
 
-func (d *Dispatcher) getUCPConn(socketIdent string, target string) (rc *net.UDPConn, err error) {
+// connTimeout is the timeout of connection to build if not exists
+func (d *Dispatcher) getUCPConn(socketIdent string, target string, connTimeout time.Duration) (rc *net.UDPConn, isNewConn bool, err error) {
 	d.nm.Lock()
 	var conn *UDPConn
 	var ok bool
+	log.Println(len(d.nm.nm))
 	if conn, ok = d.nm.Get(socketIdent); !ok {
-		d.nm.Insert(socketIdent, nil)
+		d.nm.Insert(socketIdent, nil, 3600*time.Second)
 		d.nm.Unlock()
 		rconn, err := net.Dial("udp", target)
 		if err != nil {
 			d.nm.Lock()
 			d.nm.Remove(socketIdent) // close channel to inform that establishment ends
 			d.nm.Unlock()
-			return nil, fmt.Errorf("getUCPConn dial error: %v", err)
+			return nil, false, fmt.Errorf("getUCPConn dial error: %v", err)
 		}
 		rc = rconn.(*net.UDPConn)
 		d.nm.Lock()
 		d.nm.Remove(socketIdent) // close channel to inform that establishment ends
-		d.nm.Insert(socketIdent, rc)
+		d.nm.Insert(socketIdent, rc, connTimeout)
 		d.nm.Unlock()
+		isNewConn = true
 	} else {
 		d.nm.Unlock()
 		<-conn.Establishing
 		if conn.UDPConn == nil {
 			// establishment ended and retrieve the result
-			return d.getUCPConn(socketIdent, target)
+			return d.getUCPConn(socketIdent, target, connTimeout)
 		} else {
 			// establishment succeeded before
 			rc = conn.UDPConn
 		}
 	}
-	return rc, nil
+	return rc, isNewConn, nil
 }
 
-func relay(dst *net.UDPConn, laddr net.Addr, src *net.UDPConn) (err error) {
+func relay(dst *net.UDPConn, laddr net.Addr, src *net.UDPConn, timeout time.Duration) (err error) {
 	var n int
 	buf := leakybuf.Get(leakybuf.UDPBufSize)
 	defer leakybuf.Put(buf)
-	_ = src.SetDeadline(time.Now().Add(timeout))
+	_ = src.SetReadDeadline(time.Now().Add(timeout))
 	for {
 		n, _, err = src.ReadFrom(buf)
 		if err != nil {
@@ -129,11 +145,11 @@ func relay(dst *net.UDPConn, laddr net.Addr, src *net.UDPConn) (err error) {
 	}
 }
 
-func (d *Dispatcher) Auth(data []byte, userContext *config.UserContext) (hit *config.Server) {
+func (d *Dispatcher) Auth(data []byte, userContext *config.UserContext) (hit *config.Server, content []byte) {
 	if len(data) <= 32 {
-		return nil //fmt.Errorf("length of data should be greater than 32")
+		return nil, nil //fmt.Errorf("length of data should be greater than 32")
 	}
-	return userContext.Auth(func(server *config.Server) bool {
+	return userContext.Auth(func(server *config.Server) ([]byte, bool) {
 		return probe(data, server)
 	})
 }
@@ -142,13 +158,14 @@ func (d *Dispatcher) Close() (err error) {
 	return d.c.Close()
 }
 
-func probe(data []byte, server *config.Server) bool {
+func probe(data []byte, server *config.Server) ([]byte, bool) {
 	//[salt][encrypted payload][tag]
 	conf := cipher.CiphersConf[server.Method]
 	if len(data) < conf.SaltLen+conf.TagLen {
-		return false
+		return nil, false
 	}
 	salt := data[:conf.SaltLen]
 	cipherText := data[conf.SaltLen:]
-	return conf.Verify(server.MasterKey, salt, cipherText)
+	content, ok := conf.Verify(server.MasterKey, salt, cipherText)
+	return content, ok
 }

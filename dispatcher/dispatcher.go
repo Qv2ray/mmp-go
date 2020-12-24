@@ -7,7 +7,7 @@ import (
 
 type Dispatcher interface {
 	Listen() (err error)
-	Auth(data []byte, userContext *config.UserContext) (hit *config.Server)
+	Auth(data []byte, userContext *config.UserContext) (hit *config.Server, content []byte)
 	Close() (err error)
 }
 
