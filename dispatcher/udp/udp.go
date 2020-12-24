@@ -68,7 +68,6 @@ func (d *Dispatcher) handleConn(laddr net.Addr, buf []byte, n int) (err error) {
 	// auth every server
 	server, content := d.Auth(buf[:n], userContext)
 	if server == nil {
-		log.Println("auth fail")
 		return nil
 	}
 	timeout := selectTimeout(content)
@@ -97,7 +96,6 @@ func (d *Dispatcher) getUCPConn(socketIdent string, target string, connTimeout t
 	d.nm.Lock()
 	var conn *UDPConn
 	var ok bool
-	log.Println(len(d.nm.nm))
 	if conn, ok = d.nm.Get(socketIdent); !ok {
 		d.nm.Insert(socketIdent, nil, 3600*time.Second)
 		d.nm.Unlock()
