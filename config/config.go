@@ -23,10 +23,11 @@ type Server struct {
 	MasterKey []byte `json:"-"`
 }
 type Group struct {
-	Port            int              `json:"port"`
-	Servers         []Server         `json:"servers"`
-	LRUSize         int              `json:"lruSize"`
-	UserContextPool *UserContextPool `json:"-"`
+	Port            int                 `json:"port"`
+	Servers         []Server            `json:"servers"`
+	Upstreams       []map[string]string `json:"upstreams"`
+	LRUSize         int                 `json:"lruSize"`
+	UserContextPool *UserContextPool    `json:"-"`
 }
 
 var config *Config
@@ -34,7 +35,7 @@ var once sync.Once
 var Version = "debug"
 
 const (
-	DefaultLRUSize = 30
+	DefaultLRUSize = 50
 )
 
 func (g *Group) BuildMasterKeys() {
@@ -82,7 +83,31 @@ func (config *Config) CheckDiverseCombinations() error {
 	}
 	return nil
 }
-
+func parseUpstreams(config *Config) (err error) {
+	for i := range config.Groups {
+		g := &config.Groups[i]
+		for j, u := range g.Upstreams {
+			var upstream Upstream
+			switch u["type"] {
+			case "outline":
+				var outline Outline
+				err = Map2upstream(u, &outline)
+				if err != nil {
+					return
+				}
+				upstream = outline
+			default:
+				return fmt.Errorf("unknown upstream type: %v", u["type"])
+			}
+			servers, err := upstream.GetServers()
+			if err != nil {
+				return fmt.Errorf("failed to retrieve configure from groups[%d].upstreams[%d]: %v", i, j, err)
+			}
+			g.Servers = append(g.Servers, servers...)
+		}
+	}
+	return nil
+}
 func check(config *Config) (err error) {
 	if err = config.CheckMethodSupported(); err != nil {
 		return
@@ -113,13 +138,16 @@ func GetConfig() *Config {
 			fmt.Println(Version)
 			os.Exit(0)
 		}
+
 		config = new(Config)
 		b, err := ioutil.ReadFile(*filename)
 		if err != nil {
 			log.Fatalln(err)
 		}
-		err = json.Unmarshal(b, config)
-		if err != nil {
+		if err = json.Unmarshal(b, config); err != nil {
+			log.Fatalln(err)
+		}
+		if err = parseUpstreams(config); err != nil {
 			log.Fatalln(err)
 		}
 		if err = check(config); err != nil {
