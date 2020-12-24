@@ -7,7 +7,8 @@ import (
 
 type Dispatcher interface {
 	Listen() (err error)
-	Auth(data []byte, userContext *config.UserContext) (hit *config.Server, content []byte)
+	// buf is a buffer to store decrypted text
+	Auth(buf []byte, data []byte, userContext *config.UserContext) (hit *config.Server, content []byte)
 	Close() (err error)
 }
 

@@ -32,7 +32,7 @@ const MaxNonceSize = 12
 var ZeroNonce [MaxNonceSize]byte
 var TCPReuseDstBuf [2 + TCPMaxTagSize]byte
 
-func (conf *CipherConf) Verify(masterKey []byte, salt []byte, cipherText []byte) ([]byte, bool) {
+func (conf *CipherConf) Verify(buf []byte, masterKey []byte, salt []byte, cipherText []byte) ([]byte, bool) {
 	subKey := leakybuf.Get(conf.KeyLen)
 	defer leakybuf.Put(subKey)
 	kdf := hkdf.New(
@@ -45,7 +45,6 @@ func (conf *CipherConf) Verify(masterKey []byte, salt []byte, cipherText []byte)
 
 	ciph, _ := conf.NewCipher(subKey)
 
-	var buf = make([]byte, len(cipherText)-ciph.Overhead())
 	_, err := ciph.Open(buf, ZeroNonce[:conf.NonceLen], cipherText, nil)
 	return buf, err == nil
 }

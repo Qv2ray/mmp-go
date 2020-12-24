@@ -61,12 +61,14 @@ func selectTimeout(packet []byte) time.Duration {
 	return dnsQueryTimeout
 }
 
-func (d *Dispatcher) handleConn(laddr net.Addr, buf []byte, n int) (err error) {
+func (d *Dispatcher) handleConn(laddr net.Addr, data []byte, n int) (err error) {
 	// get user's context (preference)
 	userContext := d.group.UserContextPool.Get(laddr, d.group.Servers)
 
+	buf := leakybuf.Get(n)
+	defer leakybuf.Put(buf)
 	// auth every server
-	server, content := d.Auth(buf[:n], userContext)
+	server, content := d.Auth(buf, data[:n], userContext)
 	if server == nil {
 		return nil
 	}
@@ -84,7 +86,7 @@ func (d *Dispatcher) handleConn(laddr net.Addr, buf []byte, n int) (err error) {
 			_ = relay(d.c, laddr, rc, timeout)
 		}()
 	}
-	_, err = rc.Write(buf[:n])
+	_, err = rc.Write(data[:n])
 	if err != nil {
 		return fmt.Errorf("[udp] handleConn write error: %v", err)
 	}
@@ -143,12 +145,12 @@ func relay(dst *net.UDPConn, laddr net.Addr, src *net.UDPConn, timeout time.Dura
 	}
 }
 
-func (d *Dispatcher) Auth(data []byte, userContext *config.UserContext) (hit *config.Server, content []byte) {
+func (d *Dispatcher) Auth(buf []byte, data []byte, userContext *config.UserContext) (hit *config.Server, content []byte) {
 	if len(data) <= 32 {
 		return nil, nil //fmt.Errorf("length of data should be greater than 32")
 	}
 	return userContext.Auth(func(server *config.Server) ([]byte, bool) {
-		return probe(data, server)
+		return probe(buf, data, server)
 	})
 }
 
@@ -156,7 +158,7 @@ func (d *Dispatcher) Close() (err error) {
 	return d.c.Close()
 }
 
-func probe(data []byte, server *config.Server) ([]byte, bool) {
+func probe(buf []byte, data []byte, server *config.Server) ([]byte, bool) {
 	//[salt][encrypted payload][tag]
 	conf := cipher.CiphersConf[server.Method]
 	if len(data) < conf.SaltLen+conf.TagLen {
@@ -164,6 +166,6 @@ func probe(data []byte, server *config.Server) ([]byte, bool) {
 	}
 	salt := data[:conf.SaltLen]
 	cipherText := data[conf.SaltLen:]
-	content, ok := conf.Verify(server.MasterKey, salt, cipherText)
+	content, ok := conf.Verify(buf, server.MasterKey, salt, cipherText)
 	return content, ok
 }
