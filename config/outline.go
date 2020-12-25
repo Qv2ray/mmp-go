@@ -1,6 +1,7 @@
 package config
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"golang.org/x/crypto/ssh"
@@ -54,7 +55,12 @@ func (outline Outline) getConfig() ([]byte, error) {
 		return nil, fmt.Errorf("failed to create session: %v", err)
 	}
 	defer session.Close()
-	return session.Output("cat /opt/outline/persisted-state/shadowbox_config.json")
+	out, err := session.CombinedOutput("cat /opt/outline/persisted-state/shadowbox_config.json")
+	if err != nil {
+		err = fmt.Errorf("%v: %v", string(bytes.TrimSpace(out)), err)
+		return nil, err
+	}
+	return out, nil
 }
 
 func (outline Outline) GetServers() (servers []Server, err error) {
