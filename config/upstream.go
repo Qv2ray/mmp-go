@@ -9,6 +9,8 @@ type Upstream interface {
 	GetServers() (servers []Server, err error)
 }
 
+var InvalidUpstreamErr = fmt.Errorf("invalid upstream")
+
 func Map2upstream(m map[string]string, upstream interface{}) error {
 	v := reflect.ValueOf(upstream)
 	if !v.IsValid() {
