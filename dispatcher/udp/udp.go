@@ -73,19 +73,14 @@ func (d *Dispatcher) handleConn(laddr net.Addr, data []byte, n int) (err error) 
 		return nil
 	}
 	timeout := selectTimeout(content)
-	// get conn or dial
-	rc, isNewConn, err := d.getUCPConn(laddr.String(), server.Target, timeout)
+	// get conn or dial and relay
+	rc, err := d.getUCPConn(laddr, server.Target, timeout)
 	if err != nil {
 		return fmt.Errorf("[udp] handleConn dial target error: %v", err)
 	}
 
-	// relay
+	// send packet
 	log.Printf("[udp] %s <-> %s <-> %s", laddr.String(), d.c.LocalAddr(), rc.RemoteAddr())
-	if isNewConn {
-		go func() {
-			_ = relay(d.c, laddr, rc, timeout)
-		}()
-	}
 	_, err = rc.Write(data[:n])
 	if err != nil {
 		return fmt.Errorf("[udp] handleConn write error: %v", err)
@@ -94,7 +89,8 @@ func (d *Dispatcher) handleConn(laddr net.Addr, data []byte, n int) (err error) 
 }
 
 // connTimeout is the timeout of connection to build if not exists
-func (d *Dispatcher) getUCPConn(socketIdent string, target string, connTimeout time.Duration) (rc *net.UDPConn, isNewConn bool, err error) {
+func (d *Dispatcher) getUCPConn(laddr net.Addr, target string, connTimeout time.Duration) (rc *net.UDPConn, err error) {
+	socketIdent := laddr.String()
 	d.nm.Lock()
 	var conn *UDPConn
 	var ok bool
@@ -106,34 +102,39 @@ func (d *Dispatcher) getUCPConn(socketIdent string, target string, connTimeout t
 			d.nm.Lock()
 			d.nm.Remove(socketIdent) // close channel to inform that establishment ends
 			d.nm.Unlock()
-			return nil, false, fmt.Errorf("getUCPConn dial error: %v", err)
+			return nil, fmt.Errorf("getUCPConn dial error: %v", err)
 		}
 		rc = rconn.(*net.UDPConn)
 		d.nm.Lock()
 		d.nm.Remove(socketIdent) // close channel to inform that establishment ends
 		d.nm.Insert(socketIdent, rc, connTimeout)
 		d.nm.Unlock()
-		isNewConn = true
+		go func() {
+			_ = relay(d.c, laddr, rc, connTimeout)
+			d.nm.Lock()
+			d.nm.Remove(socketIdent)
+			d.nm.Unlock()
+		}()
 	} else {
 		d.nm.Unlock()
 		<-conn.Establishing
 		if conn.UDPConn == nil {
 			// establishment ended and retrieve the result
-			return d.getUCPConn(socketIdent, target, connTimeout)
+			return d.getUCPConn(laddr, target, connTimeout)
 		} else {
 			// establishment succeeded before
 			rc = conn.UDPConn
 		}
 	}
-	return rc, isNewConn, nil
+	return rc, nil
 }
 
 func relay(dst *net.UDPConn, laddr net.Addr, src *net.UDPConn, timeout time.Duration) (err error) {
 	var n int
 	buf := leakybuf.Get(leakybuf.UDPBufSize)
 	defer leakybuf.Put(buf)
-	_ = src.SetReadDeadline(time.Now().Add(timeout))
 	for {
+		_ = src.SetReadDeadline(time.Now().Add(timeout))
 		n, _, err = src.ReadFrom(buf)
 		if err != nil {
 			return

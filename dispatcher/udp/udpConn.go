@@ -87,7 +87,7 @@ func (m *UDPConnMapping) Remove(key string) {
 	}
 	select {
 	case <-v.Establishing:
-		_ = m.nm[key].Close()
+		_ = v.Close()
 	default:
 		close(v.Establishing)
 	}
