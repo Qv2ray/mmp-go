@@ -38,23 +38,29 @@ func (outline Outline) getConfig() ([]byte, error) {
 	for _, f := range tryList {
 		b, err = f()
 		if err != nil {
+			// try next func
+			b = nil
 			errs = append(errs, err)
 			continue
 		}
 		if b != nil {
+			// valid result, break
 			break
 		}
 	}
 	if b != nil {
+		// valid result
 		return b, nil
 	}
 	if len(errs) > 0 {
+		// concatenate errors
 		err = errs[0]
 		for i := 1; i < len(errs); i++ {
 			err = fmt.Errorf("%v; %v", err, errs[i])
 		}
 		return nil, err
 	}
+	// b and err is both nil, no valid info to get configure
 	return nil, InvalidUpstreamErr
 }
 
