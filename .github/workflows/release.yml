@@ -5,7 +5,7 @@ on:
     types: [prereleased]
   push:
     branches:
-      - master
+      - main
       - v*
       - dev*
     paths:
