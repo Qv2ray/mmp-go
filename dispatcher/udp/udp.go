@@ -74,7 +74,7 @@ func (d *Dispatcher) handleConn(laddr net.Addr, data []byte, n int) (err error) 
 	}
 	timeout := selectTimeout(content)
 	// get conn or dial and relay
-	rc, err := d.getUCPConn(laddr, server.Target, timeout)
+	rc, err := d.GetOrBuildUCPConn(laddr, server.Target, timeout)
 	if err != nil {
 		return fmt.Errorf("[udp] handleConn dial target error: %v", err)
 	}
@@ -89,12 +89,13 @@ func (d *Dispatcher) handleConn(laddr net.Addr, data []byte, n int) (err error) 
 }
 
 // connTimeout is the timeout of connection to build if not exists
-func (d *Dispatcher) getUCPConn(laddr net.Addr, target string, connTimeout time.Duration) (rc *net.UDPConn, err error) {
+func (d *Dispatcher) GetOrBuildUCPConn(laddr net.Addr, target string, connTimeout time.Duration) (rc *net.UDPConn, err error) {
 	socketIdent := laddr.String()
 	d.nm.Lock()
 	var conn *UDPConn
 	var ok bool
 	if conn, ok = d.nm.Get(socketIdent); !ok {
+		// not exist such socket mapping, build one
 		d.nm.Insert(socketIdent, nil, 3600*time.Second)
 		d.nm.Unlock()
 		rconn, err := net.Dial("udp", target)
@@ -102,13 +103,14 @@ func (d *Dispatcher) getUCPConn(laddr net.Addr, target string, connTimeout time.
 			d.nm.Lock()
 			d.nm.Remove(socketIdent) // close channel to inform that establishment ends
 			d.nm.Unlock()
-			return nil, fmt.Errorf("getUCPConn dial error: %v", err)
+			return nil, fmt.Errorf("GetOrBuildUCPConn dial error: %v", err)
 		}
 		rc = rconn.(*net.UDPConn)
 		d.nm.Lock()
 		d.nm.Remove(socketIdent) // close channel to inform that establishment ends
 		d.nm.Insert(socketIdent, rc, connTimeout)
 		d.nm.Unlock()
+		// relay
 		go func() {
 			_ = relay(d.c, laddr, rc, connTimeout)
 			d.nm.Lock()
@@ -116,13 +118,14 @@ func (d *Dispatcher) getUCPConn(laddr net.Addr, target string, connTimeout time.
 			d.nm.Unlock()
 		}()
 	} else {
+		// exist such socket mapping, just verify or wait for its establishment
 		d.nm.Unlock()
 		<-conn.Establishing
 		if conn.UDPConn == nil {
 			// establishment ended and retrieve the result
-			return d.getUCPConn(laddr, target, connTimeout)
+			return d.GetOrBuildUCPConn(laddr, target, connTimeout)
 		} else {
-			// establishment succeeded before
+			// establishment succeeded
 			rc = conn.UDPConn
 		}
 	}
