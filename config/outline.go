@@ -5,22 +5,39 @@ import (
 	"encoding/json"
 	"fmt"
 	"golang.org/x/crypto/ssh"
+	"io/ioutil"
+	"log"
 	"net"
+	"net/http"
 	"strconv"
+	"time"
 )
 
 type Outline struct {
 	Type          string `json:"type"`
 	Server        string `json:"server"`
+	Link          string `json:"link"`
 	SSHPort       string `json:"sshPort"`
 	SSHUsername   string `json:"sshUsername"`
 	SSHPrivateKey string `json:"sshPrivateKey"`
 	SSHPassword   string `json:"sshPassword"`
 }
 
-func (outline Outline) getConfig() ([]byte, error) {
+func (outline Outline) getConfigFromLink() ([]byte, error) {
+	client := http.Client{
+		Timeout: 10 * time.Second,
+	}
+	resp, err := client.Get(outline.Link)
+	if err != nil {
+		return nil, fmt.Errorf("getConfigFromLink failed: %v", err)
+	}
+	defer resp.Body.Close()
+	return ioutil.ReadAll(resp.Body)
+}
+
+func (outline Outline) getConfigFromSSH() ([]byte, error) {
 	var (
-		config      *ssh.ClientConfig
+		conf        *ssh.ClientConfig
 		authMethods []ssh.AuthMethod
 	)
 	if outline.SSHPrivateKey != "" {
@@ -35,7 +52,7 @@ func (outline Outline) getConfig() ([]byte, error) {
 	if username == "" {
 		username = "root"
 	}
-	config = &ssh.ClientConfig{
+	conf = &ssh.ClientConfig{
 		User:            username,
 		Auth:            authMethods,
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
@@ -44,7 +61,7 @@ func (outline Outline) getConfig() ([]byte, error) {
 	if port == "" {
 		port = "22"
 	}
-	client, err := ssh.Dial("tcp", net.JoinHostPort(outline.Server, port), config)
+	client, err := ssh.Dial("tcp", net.JoinHostPort(outline.Server, port), conf)
 	if err != nil {
 		return nil, fmt.Errorf("failed to dial: %v", err)
 	}
@@ -69,16 +86,23 @@ func (outline Outline) GetServers() (servers []Server, err error) {
 			err = fmt.Errorf("outline.GetGroups: %v", err)
 		}
 	}()
-	b, err := outline.getConfig()
+	var b []byte
+	if outline.Link != "" {
+		b, err = outline.getConfigFromLink()
+	}
+	if err != nil {
+		log.Printf("[warning] %v\n", err)
+		b, err = outline.getConfigFromSSH()
+	}
 	if err != nil {
 		return
 	}
-	var config ShadowboxConfig
-	err = json.Unmarshal(b, &config)
+	var conf ShadowboxConfig
+	err = json.Unmarshal(b, &conf)
 	if err != nil {
 		return
 	}
-	return config.ToServers(outline.Server), nil
+	return conf.ToServers(outline.Server), nil
 }
 
 type AccessKey struct {
@@ -103,9 +127,9 @@ type ShadowboxConfig struct {
 	NextID     int         `json:"nextId"`
 }
 
-func (config *ShadowboxConfig) ToServers(host string) []Server {
+func (c *ShadowboxConfig) ToServers(host string) []Server {
 	var servers []Server
-	for _, k := range config.AccessKeys {
+	for _, k := range c.AccessKeys {
 		servers = append(servers, k.ToServer(host))
 	}
 	return servers
