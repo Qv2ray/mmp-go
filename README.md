@@ -22,8 +22,7 @@ Client --> Single Port --> Validator / Multiplexer |------> SS Server2
 ### Usage
 
 ```shell
-go get -u github.com/Qv2ray/mmp-go
-mmp-go -conf example.json
+./mmp-go -conf example.json
 ```
 
 Refer to `example.json`
