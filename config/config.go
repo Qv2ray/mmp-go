@@ -101,7 +101,8 @@ func parseUpstreams(config *Config) (err error) {
 			}
 			servers, err := upstream.GetServers()
 			if err != nil {
-				return fmt.Errorf("failed to retrieve configure from groups[%d].upstreams[%d]: %v", i, j, err)
+				log.Printf("[warning] Failed to retrieve configure from groups[%d].upstreams[%d]: %v\n", i, j, err)
+				continue
 			}
 			g.Servers = append(g.Servers, servers...)
 		}
