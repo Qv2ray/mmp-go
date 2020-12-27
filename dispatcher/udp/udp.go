@@ -33,20 +33,21 @@ func (d *Dispatcher) Listen() (err error) {
 	}
 	defer d.c.Close()
 	log.Printf("[udp] listen on :%v\n", d.group.Port)
+	var buf [leakybuf.UDPBufSize]byte
 	for {
-		buf := leakybuf.Get(leakybuf.UDPBufSize)
-		n, laddr, err := d.c.ReadFrom(buf)
+		n, laddr, err := d.c.ReadFrom(buf[:])
 		if err != nil {
 			log.Printf("[error] ReadFrom: %v", err)
-			leakybuf.Put(buf)
 			continue
 		}
+		data := leakybuf.Get(n)
+		copy(data, buf[:n])
 		go func() {
-			err := d.handleConn(laddr, buf, n)
+			err := d.handleConn(laddr, data, n)
 			if err != nil {
 				log.Println(err)
 			}
-			leakybuf.Put(buf)
+			leakybuf.Put(data)
 		}()
 	}
 }
@@ -56,7 +57,7 @@ func selectTimeout(packet []byte) time.Duration {
 	var dmessage dnsmessage.Message
 	err := dmessage.Unpack(packet)
 	if err != nil {
-		return defaultTimeout
+		return defaultNatTimeout
 	}
 	return dnsQueryTimeout
 }
@@ -80,7 +81,6 @@ func (d *Dispatcher) handleConn(laddr net.Addr, data []byte, n int) (err error) 
 	}
 
 	// send packet
-	log.Printf("[udp] %s <-> %s <-> %s", laddr.String(), d.c.LocalAddr(), rc.RemoteAddr())
 	_, err = rc.Write(data[:n])
 	if err != nil {
 		return fmt.Errorf("[udp] handleConn write error: %v", err)
@@ -89,14 +89,14 @@ func (d *Dispatcher) handleConn(laddr net.Addr, data []byte, n int) (err error) 
 }
 
 // connTimeout is the timeout of connection to build if not exists
-func (d *Dispatcher) GetOrBuildUCPConn(laddr net.Addr, target string, connTimeout time.Duration) (rc *net.UDPConn, err error) {
+func (d *Dispatcher) GetOrBuildUCPConn(laddr net.Addr, target string, natTimeout time.Duration) (rc *UDPConn, err error) {
 	socketIdent := laddr.String()
 	d.nm.Lock()
 	var conn *UDPConn
 	var ok bool
 	if conn, ok = d.nm.Get(socketIdent); !ok {
 		// not exist such socket mapping, build one
-		d.nm.Insert(socketIdent, nil, 3600*time.Second)
+		d.nm.Insert(socketIdent, nil)
 		d.nm.Unlock()
 		rconn, err := net.Dial("udp", target)
 		if err != nil {
@@ -105,14 +105,16 @@ func (d *Dispatcher) GetOrBuildUCPConn(laddr net.Addr, target string, connTimeou
 			d.nm.Unlock()
 			return nil, fmt.Errorf("GetOrBuildUCPConn dial error: %v", err)
 		}
-		rc = rconn.(*net.UDPConn)
+		_rconn := rconn.(*net.UDPConn)
 		d.nm.Lock()
 		d.nm.Remove(socketIdent) // close channel to inform that establishment ends
-		d.nm.Insert(socketIdent, rc, connTimeout)
+		d.nm.Insert(socketIdent, _rconn)
+		rc, _ = d.nm.Get(socketIdent)
 		d.nm.Unlock()
 		// relay
+		log.Printf("[udp] %s <-> %s <-> %s", laddr.String(), d.c.LocalAddr(), rc.RemoteAddr())
 		go func() {
-			_ = relay(d.c, laddr, rc, connTimeout)
+			_ = relay(d.c, laddr, _rconn, natTimeout)
 			d.nm.Lock()
 			d.nm.Remove(socketIdent)
 			d.nm.Unlock()
@@ -123,10 +125,10 @@ func (d *Dispatcher) GetOrBuildUCPConn(laddr net.Addr, target string, connTimeou
 		<-conn.Establishing
 		if conn.UDPConn == nil {
 			// establishment ended and retrieve the result
-			return d.GetOrBuildUCPConn(laddr, target, connTimeout)
+			return d.GetOrBuildUCPConn(laddr, target, natTimeout)
 		} else {
 			// establishment succeeded
-			rc = conn.UDPConn
+			rc = conn
 		}
 	}
 	return rc, nil
@@ -142,6 +144,7 @@ func relay(dst *net.UDPConn, laddr net.Addr, src *net.UDPConn, timeout time.Dura
 		if err != nil {
 			return
 		}
+		_ = dst.SetWriteDeadline(time.Now().Add(timeout))
 		_, err = dst.WriteTo(buf[:n], laddr)
 		if err != nil {
 			return

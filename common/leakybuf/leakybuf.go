@@ -1,3 +1,5 @@
+// modified from https://github.com/nadoo/glider/blob/master/pool/buffer.go
+
 package leakybuf
 
 import (
@@ -5,74 +7,53 @@ import (
 	"sync"
 )
 
-var pool = make(map[int]chan []byte)
-var mu sync.RWMutex
+const (
+	// number of pools.
+	num        = 17
+	maxsize    = 1 << (num - 1)
+	UDPBufSize = 64 * 1024
+)
 
-const maxPoolSize = 256
-const UDPBufSize = 64 * 1024
-const maxSize = 1 << 17
+var (
+	sizes [num]int
+	pools [num]sync.Pool
+)
 
-func getClosestSize(need int) (size int) {
-	// if need is exactly 2^n, return it
+func init() {
+	for i := 0; i < num; i++ {
+		size := 1 << i
+		sizes[i] = size
+		pools[i].New = func() interface{} {
+			return make([]byte, size)
+		}
+	}
+}
+
+func getClosestN(need int) (n int) {
+	// if need is exactly 2^n, return n-1
 	if need&(need-1) == 0 {
-		return need
+		return bits.Len32(uint32(need)) - 1
 	}
-	// or return its closest 2^n
-	return 1 << bits.Len(uint(need))
+	// or return its closest n
+	return bits.Len32(uint32(need))
 }
 
-func Get(need int) []byte {
-	if need > maxSize {
-		return make([]byte, need)
+// Get gets a buffer from pool, size should in range: [1, 65536],
+// otherwise, this function will call make([]byte, size) directly.
+func Get(size int) []byte {
+	if size >= 1 && size <= maxsize {
+		i := getClosestN(size)
+		return pools[i].Get().([]byte)[:size]
 	}
-	size := getClosestSize(need)
-	mu.RLock()
-	c, ok := pool[size]
-	if !ok {
-		mu.RUnlock()
-		mu.Lock()
-		if c, ok = pool[size]; !ok {
-			pool[size] = make(chan []byte, maxPoolSize)
-			mu.Unlock()
-			return make([]byte, need, size)
-		}
-		mu.Unlock()
-	} else {
-		mu.RUnlock()
-	}
-	select {
-	case buf := <-c:
-		return buf[:need]
-	default:
-	}
-	return make([]byte, need, size)
+	return make([]byte, size)
 }
 
+// Put puts a buffer into pool.
 func Put(buf []byte) {
-	size := cap(buf)
-	if size > maxSize {
-		return
-	}
-	mu.RLock()
-	c, ok := pool[size]
-	if ok {
-		mu.RUnlock()
-		select {
-		case c <- buf[:size]:
-		default:
-		}
-	} else {
-		mu.RUnlock()
-		mu.Lock()
-		if c, ok = pool[size]; !ok {
-			pool[size] = make(chan []byte, maxPoolSize)
-			mu.Unlock()
-		} else {
-			mu.Unlock()
-		}
-		select {
-		case pool[size] <- buf[:size]:
-		default:
+	if size := cap(buf); size >= 1 && size <= maxsize {
+		i := getClosestN(size)
+		if i < num {
+			pools[i].Put(buf)
 		}
 	}
 }

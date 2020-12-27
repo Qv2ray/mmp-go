@@ -148,6 +148,7 @@ func GetConfig() *Config {
 		if err = json.Unmarshal(b, config); err != nil {
 			log.Fatalln(err)
 		}
+		log.Println("pulling configures from upstreams...")
 		if err = parseUpstreams(config); err != nil {
 			log.Fatalln(err)
 		}
