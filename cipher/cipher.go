@@ -45,8 +45,8 @@ func (conf *CipherConf) Verify(buf []byte, masterKey []byte, salt []byte, cipher
 
 	ciph, _ := conf.NewCipher(subKey)
 
-	_, err := ciph.Open(buf, ZeroNonce[:conf.NonceLen], cipherText, nil)
-	return buf, err == nil
+	_, err := ciph.Open(buf[:0], ZeroNonce[:conf.NonceLen], cipherText, nil)
+	return buf[:len(cipherText)-ciph.Overhead()], err == nil
 }
 
 func MD5Sum(d []byte) []byte {

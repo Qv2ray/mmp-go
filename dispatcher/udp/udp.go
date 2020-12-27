@@ -52,8 +52,23 @@ func (d *Dispatcher) Listen() (err error) {
 	}
 }
 
+func addrLen(packet []byte) int {
+	l := 1 + 2 // type + port
+	// host
+	switch packet[0] {
+	case 0x01:
+		l += 4
+	case 0x03:
+		l += 1 + int(packet[1])
+	case 0x04:
+		l += 16
+	}
+	return l
+}
+
 // select an appropriate timeout
 func selectTimeout(packet []byte) time.Duration {
+	packet = packet[addrLen(packet):]
 	var dmessage dnsmessage.Message
 	err := dmessage.Unpack(packet)
 	if err != nil {
@@ -173,6 +188,6 @@ func probe(buf []byte, data []byte, server *config.Server) ([]byte, bool) {
 	}
 	salt := data[:conf.SaltLen]
 	cipherText := data[conf.SaltLen:]
-	content, ok := conf.Verify(buf, server.MasterKey, salt, cipherText)
-	return content, ok
+
+	return conf.Verify(buf, server.MasterKey, salt, cipherText)
 }
