@@ -105,7 +105,7 @@ func (d *Dispatcher) handleConn(conn net.Conn) error {
 
 func relay(lc, rc net.Conn) error {
 	defer rc.Close()
-	ch := make(chan error)
+	ch := make(chan error, 1)
 	go func() {
 		_, err := io.Copy(lc, rc)
 		lc.SetDeadline(time.Now())
