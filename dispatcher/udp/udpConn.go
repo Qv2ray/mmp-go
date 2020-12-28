@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	defaultNatTimeout = 5 * time.Minute
+	defaultNatTimeout = 2 * time.Minute
 	dnsQueryTimeout   = 17 * time.Second // RFC 5452
 )
 

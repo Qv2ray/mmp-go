@@ -12,6 +12,10 @@ import (
 	"time"
 )
 
+const (
+	BufSize = 64 * 1024
+)
+
 func init() {
 	dispatcher.Register("udp", New)
 }
@@ -33,7 +37,7 @@ func (d *Dispatcher) Listen() (err error) {
 	}
 	defer d.c.Close()
 	log.Printf("[udp] listen on :%v\n", d.group.Port)
-	var buf [leakybuf.UDPBufSize]byte
+	var buf [BufSize]byte
 	for {
 		n, laddr, err := d.c.ReadFrom(buf[:])
 		if err != nil {
@@ -53,6 +57,9 @@ func (d *Dispatcher) Listen() (err error) {
 }
 
 func addrLen(packet []byte) int {
+	if len(packet) < 5 {
+		return 0 // invalid addr field
+	}
 	l := 1 + 2 // type + port
 	// host
 	switch packet[0] {
@@ -68,7 +75,12 @@ func addrLen(packet []byte) int {
 
 // select an appropriate timeout
 func selectTimeout(packet []byte) time.Duration {
-	packet = packet[addrLen(packet):]
+	al := addrLen(packet)
+	if len(packet) < al {
+		// err: packet with inadequate length
+		return defaultNatTimeout
+	}
+	packet = packet[al:]
 	var dmessage dnsmessage.Message
 	err := dmessage.Unpack(packet)
 	if err != nil {
@@ -151,7 +163,7 @@ func (d *Dispatcher) GetOrBuildUCPConn(laddr net.Addr, target string, natTimeout
 
 func relay(dst *net.UDPConn, laddr net.Addr, src *net.UDPConn, timeout time.Duration) (err error) {
 	var n int
-	buf := leakybuf.Get(leakybuf.UDPBufSize)
+	buf := leakybuf.Get(BufSize)
 	defer leakybuf.Put(buf)
 	for {
 		_ = src.SetReadDeadline(time.Now().Add(timeout))
