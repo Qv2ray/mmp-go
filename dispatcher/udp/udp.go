@@ -40,14 +40,15 @@ func (d *Dispatcher) Listen() (err error) {
 			log.Printf("[error] ReadFrom: %v", err)
 			continue
 		}
-		data := leakybuf.Get(n)
+		//data := leakybuf.Get(n)
+		data := make([]byte, n)
 		copy(data, buf[:n])
 		go func() {
 			err := d.handleConn(laddr, data, n)
 			if err != nil {
 				log.Println(err)
 			}
-			leakybuf.Put(data)
+			//leakybuf.Put(data)
 		}()
 	}
 }
@@ -81,8 +82,9 @@ func (d *Dispatcher) handleConn(laddr net.Addr, data []byte, n int) (err error) 
 	// get user's context (preference)
 	userContext := d.group.UserContextPool.Get(laddr, d.group.Servers)
 
-	buf := leakybuf.Get(n)
-	defer leakybuf.Put(buf)
+	//buf := leakybuf.Get(n)
+	//defer leakybuf.Put(buf)
+	buf := make([]byte, n)
 	// auth every server
 	server, content := d.Auth(buf, data[:n], userContext)
 	if server == nil {
@@ -151,8 +153,9 @@ func (d *Dispatcher) GetOrBuildUCPConn(laddr net.Addr, target string, natTimeout
 
 func relay(dst *net.UDPConn, laddr net.Addr, src *net.UDPConn, timeout time.Duration) (err error) {
 	var n int
-	buf := leakybuf.Get(leakybuf.UDPBufSize)
-	defer leakybuf.Put(buf)
+	//buf := leakybuf.Get(leakybuf.UDPBufSize)
+	//defer leakybuf.Put(buf)
+	buf := make([]byte, leakybuf.UDPBufSize)
 	for {
 		_ = src.SetReadDeadline(time.Now().Add(timeout))
 		n, _, err = src.ReadFrom(buf)

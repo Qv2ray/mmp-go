@@ -6,12 +6,17 @@ import (
 	_ "github.com/Qv2ray/mmp-go/dispatcher/tcp"
 	_ "github.com/Qv2ray/mmp-go/dispatcher/udp"
 	"log"
+	"net/http"
+	_ "net/http/pprof"
 	"sync"
 )
 
 var protocols = [...]string{"tcp", "udp"}
 
 func main() {
+	go func() {
+		http.ListenAndServe("0.0.0.0:6060", nil)
+	}()
 	conf := config.GetConfig()
 	var wg sync.WaitGroup
 	for i := range conf.Groups {

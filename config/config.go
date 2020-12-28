@@ -84,6 +84,7 @@ func (config *Config) CheckDiverseCombinations() error {
 	return nil
 }
 func parseUpstreams(config *Config) (err error) {
+	var logged bool
 	for i := range config.Groups {
 		g := &config.Groups[i]
 		for j, u := range g.Upstreams {
@@ -98,6 +99,10 @@ func parseUpstreams(config *Config) (err error) {
 				upstream = outline
 			default:
 				return fmt.Errorf("unknown upstream type: %v", u["type"])
+			}
+			if !logged {
+				log.Println("pulling configures from upstreams...")
+				logged = true
 			}
 			servers, err := upstream.GetServers()
 			if err != nil {
@@ -148,7 +153,6 @@ func GetConfig() *Config {
 		if err = json.Unmarshal(b, config); err != nil {
 			log.Fatalln(err)
 		}
-		log.Println("pulling configures from upstreams...")
 		if err = parseUpstreams(config); err != nil {
 			log.Fatalln(err)
 		}
