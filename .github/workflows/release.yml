@@ -100,8 +100,8 @@ jobs:
       - name: Get project dependencies
         run: |
           go get golang.org/dl/go1.16beta1
-          go1.16beta1 download
-          ln -s $(command -v go1.16beta1) $(command -v go)
+          $(go env GOPATH)/bin/go1.16beta1 download
+          ln -s $(go env GOPATH)/bin/go1.16beta1 $(command -v go)
 
       - name: Get project dependencies
         run: go mod download
