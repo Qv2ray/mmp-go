@@ -35,6 +35,7 @@ func (ctx *UserContext) Close() error {
 func (ctx *UserContext) Auth(probe func(*Server) ([]byte, bool)) (hit *Server, content []byte) {
 	lruList := ctx.Infra()
 	listCopy := lruList.GetListCopy()
+	defer lruList.GiveBackListCopy(listCopy)
 	// probe every server
 	for _, serverNode := range listCopy {
 		server := serverNode.Val.(*Server)

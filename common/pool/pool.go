@@ -28,7 +28,7 @@ func init() {
 	}
 }
 
-func getClosestN(need int) (n int) {
+func GetClosestN(need int) (n int) {
 	// if need is exactly 2^n, return n-1
 	if need&(need-1) == 0 {
 		return bits.Len32(uint32(need)) - 1
@@ -41,7 +41,7 @@ func getClosestN(need int) (n int) {
 // otherwise, this function will call make([]byte, size) directly.
 func Get(size int) []byte {
 	if size >= 1 && size <= maxsize {
-		i := getClosestN(size)
+		i := GetClosestN(size)
 		return pools[i].Get().([]byte)[:size]
 	}
 	return make([]byte, size)
@@ -50,7 +50,7 @@ func Get(size int) []byte {
 // Put puts a buffer into pool.
 func Put(buf []byte) {
 	if size := cap(buf); size >= 1 && size <= maxsize {
-		i := getClosestN(size)
+		i := GetClosestN(size)
 		if i < num {
 			pools[i].Put(buf)
 		}

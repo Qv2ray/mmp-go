@@ -18,6 +18,7 @@ type LruList struct {
 	avg            uint32
 	max            uint32
 	insertStrategy InsertStrategy
+	pool           *growingPool
 }
 
 type InsertStrategy int
@@ -28,22 +29,28 @@ const (
 )
 
 func New(updateInterval time.Duration, insertStrategy InsertStrategy) *LruList {
-	lru := &LruList{
+	list := &LruList{
 		insertStrategy: insertStrategy,
 		updateTicker:   time.NewTicker(updateInterval),
+		pool:           newGrowingPool(1),
 	}
-	go lru.updater()
-	return lru
+	list.list = list.pool.Get(1)
+	go list.updater()
+	return list
 }
 
 func NewWithList(updateInterval time.Duration, insertStrategy InsertStrategy, list []interface{}) *LruList {
-	l := make([]*Node, len(list), 2*len(list))
+	lruList := &LruList{
+		insertStrategy: insertStrategy,
+		updateTicker:   time.NewTicker(updateInterval),
+		pool:           newGrowingPool(len(list)),
+	}
+	l := lruList.pool.Get(len(list))
 	for i := range list {
 		l[i] = &Node{Val: list[i]}
 	}
-	lru := New(updateInterval, insertStrategy)
-	lru.list = l
-	return lru
+	lruList.list = l
+	return lruList
 }
 
 func (l *LruList) Close() (err error) {
@@ -53,11 +60,16 @@ func (l *LruList) Close() (err error) {
 
 // GetListCopy should be called when you want to traverse the list
 func (l *LruList) GetListCopy() []*Node {
-	list := make([]*Node, len(l.list))
 	l.muList.Lock()
+	list := l.pool.Get(len(l.list))
 	copy(list, l.list)
 	l.muList.Unlock()
 	return list
+}
+
+// GiveBackListCopy should be called when the list copy is no longer used
+func (l *LruList) GiveBackListCopy(list []*Node) {
+	l.pool.Put(list)
 }
 
 // promote but lazy sort. O(1)
@@ -93,12 +105,13 @@ func (l *LruList) Insert(val interface{}) *Node {
 		}
 		l.list[insertBefore] = node
 	} else {
-		list := make([]*Node, len(l.list)+1, 2*len(l.list))
+		list := l.pool.Get(len(l.list) + 1)
 		for i := len(l.list) - 1; i >= insertBefore; i-- {
 			list[i+1] = l.list[i]
 		}
 		list[insertBefore] = node
 		copy(list[:insertBefore], l.list[:insertBefore])
+		l.pool.Put(l.list)
 		l.list = list
 	}
 	return node
