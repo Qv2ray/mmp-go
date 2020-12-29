@@ -100,6 +100,7 @@ jobs:
       - name: Update Go
         run: |
           go get -u golang.org/dl/go1.16beta1
+          find / -name "go1.16beta1"
           $(go env GOROOT)/bin/go1.16beta1 download
           ln -s $(go env GOROOT)/bin/go1.16beta1 $(command -v go)
 
