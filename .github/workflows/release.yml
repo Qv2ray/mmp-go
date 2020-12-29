@@ -99,9 +99,10 @@ jobs:
 
       - name: Update Go
         run: |
-          go gopath-get -u golang.org/dl/go1.16beta1
-          $(go env GOPATH)/bin/go1.16beta1 download
-          ln -sf $(go env GOPATH)/bin/go1.16beta1 $(command -v go)
+          go get -u golang.org/dl/go1.16beta1
+          if [ ! $(go env GOBIN) ]; then BASE=$(go env GOBIN);else BASE=$(go env GOPATH)/bin;fi
+          $(BASE)/go1.16beta1 download
+          ln -sf $(BASE)/go1.16beta1 $(command -v go)
 
       - name: Get project dependencies
         run: go mod download
