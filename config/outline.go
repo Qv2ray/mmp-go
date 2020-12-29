@@ -22,6 +22,8 @@ type Outline struct {
 	SSHPassword   string `json:"sshPassword"`
 }
 
+const timeout = 10 * time.Second
+
 func (outline Outline) getConfig() ([]byte, error) {
 	if outline.Server == "" {
 		return nil, fmt.Errorf("server field cannot be empty")
@@ -69,7 +71,7 @@ func (outline Outline) getConfigFromLink() ([]byte, error) {
 		return nil, nil
 	}
 	client := http.Client{
-		Timeout: 10 * time.Second,
+		Timeout: timeout,
 	}
 	resp, err := client.Get(outline.Link)
 	if err != nil {
@@ -103,6 +105,7 @@ func (outline Outline) getConfigFromSSH() ([]byte, error) {
 		User:            username,
 		Auth:            authMethods,
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+		Timeout:         timeout,
 	}
 	port := outline.SSHPort
 	if port == "" {
