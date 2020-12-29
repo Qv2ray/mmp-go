@@ -19,6 +19,8 @@ const (
 	DnsQueryTimeout   = 17 * time.Second // RFC 5452
 )
 
+var AuthFailedErr = fmt.Errorf("auth failed")
+
 func init() {
 	dispatcher.Register("udp", New)
 }
@@ -76,6 +78,24 @@ func addrLen(packet []byte) int {
 	return l
 }
 
+func (d *Dispatcher) handleConn(laddr net.Addr, data []byte, n int) (err error) {
+	// get conn or dial and relay
+	rc, err := d.GetOrBuildUCPConn(laddr, data[:n])
+	if err != nil {
+		if err == AuthFailedErr {
+			return nil
+		}
+		return fmt.Errorf("[udp] handleConn dial target error: %v", err)
+	}
+
+	// send packet
+	_, err = rc.Write(data[:n])
+	if err != nil {
+		return fmt.Errorf("[udp] handleConn write error: %v", err)
+	}
+	return nil
+}
+
 // select an appropriate timeout
 func selectTimeout(packet []byte) time.Duration {
 	al := addrLen(packet)
@@ -91,35 +111,8 @@ func selectTimeout(packet []byte) time.Duration {
 	return DnsQueryTimeout
 }
 
-func (d *Dispatcher) handleConn(laddr net.Addr, data []byte, n int) (err error) {
-	// get user's context (preference)
-	userContext := d.group.UserContextPool.Get(laddr, d.group.Servers)
-
-	buf := pool.Get(n)
-	defer pool.Put(buf)
-	// auth every server
-	server, content := d.Auth(buf, data[:n], userContext)
-	if server == nil {
-		return nil
-	}
-	// get conn or dial and relay
-	rc, err := d.GetOrBuildUCPConn(laddr, server.Target, func() time.Duration {
-		return selectTimeout(content)
-	})
-	if err != nil {
-		return fmt.Errorf("[udp] handleConn dial target error: %v", err)
-	}
-
-	// send packet
-	_, err = rc.Write(data[:n])
-	if err != nil {
-		return fmt.Errorf("[udp] handleConn write error: %v", err)
-	}
-	return nil
-}
-
 // connTimeout is the timeout of connection to build if not exists
-func (d *Dispatcher) GetOrBuildUCPConn(laddr net.Addr, target string, natTimeoutFunc func() time.Duration) (rc *net.UDPConn, err error) {
+func (d *Dispatcher) GetOrBuildUCPConn(laddr net.Addr, data []byte) (rc *net.UDPConn, err error) {
 	socketIdent := laddr.String()
 	d.nm.Lock()
 	var conn *UDPConn
@@ -128,7 +121,20 @@ func (d *Dispatcher) GetOrBuildUCPConn(laddr net.Addr, target string, natTimeout
 		// not exist such socket mapping, build one
 		d.nm.Insert(socketIdent, nil)
 		d.nm.Unlock()
-		rconn, err := net.Dial("udp", target)
+
+		// get user's context (preference)
+		userContext := d.group.UserContextPool.Get(laddr, d.group.Servers)
+
+		buf := pool.Get(len(data))
+		defer pool.Put(buf)
+		// auth every server
+		server, content := d.Auth(buf, data, userContext)
+		if server == nil {
+			return nil, AuthFailedErr
+		}
+
+		// dial
+		rconn, err := net.Dial("udp", server.Target)
 		if err != nil {
 			d.nm.Lock()
 			d.nm.Remove(socketIdent) // close channel to inform that establishment ends
@@ -144,7 +150,7 @@ func (d *Dispatcher) GetOrBuildUCPConn(laddr net.Addr, target string, natTimeout
 		log.Printf("[udp] %s <-> %s <-> %s", laddr.String(), d.c.LocalAddr(), rc.RemoteAddr())
 		go func() {
 			// invoke natTimeoutFunc when necessary
-			_ = relay(d.c, laddr, rc, natTimeoutFunc())
+			_ = relay(d.c, laddr, rc, selectTimeout(content))
 			d.nm.Lock()
 			d.nm.Remove(socketIdent)
 			d.nm.Unlock()
@@ -155,7 +161,7 @@ func (d *Dispatcher) GetOrBuildUCPConn(laddr net.Addr, target string, natTimeout
 		<-conn.Establishing
 		if conn.UDPConn == nil {
 			// establishment ended and retrieve the result
-			return d.GetOrBuildUCPConn(laddr, target, natTimeoutFunc)
+			return d.GetOrBuildUCPConn(laddr, data)
 		} else {
 			// establishment succeeded
 			rc = conn.UDPConn
