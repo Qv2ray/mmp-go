@@ -99,8 +99,8 @@ jobs:
 
       - name: Update Go
         run: |
-          go get -u golang.org/dl/go1.16beta1
           go env -w GOBIN=$(pwd)/bin
+          go get -u golang.org/dl/go1.16beta1
           ./bin/go1.16beta1 download
           ln -sf $(pwd)/bin/go1.16beta1 $(command -v go)
 
