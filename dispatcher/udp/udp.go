@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	BufSize           = 64 * 1024
+	MTU               = 65535
 	BasicLen          = 32
 	DefaultNatTimeout = 3 * time.Minute
 	DnsQueryTimeout   = 17 * time.Second // RFC 5452
@@ -40,7 +40,7 @@ func (d *Dispatcher) Listen() (err error) {
 	}
 	defer d.c.Close()
 	log.Printf("[udp] listen on :%v\n", d.group.Port)
-	var buf [BufSize]byte
+	var buf [MTU]byte
 	for {
 		n, laddr, err := d.c.ReadFrom(buf[:])
 		if err != nil {
@@ -166,7 +166,7 @@ func (d *Dispatcher) GetOrBuildUCPConn(laddr net.Addr, target string, natTimeout
 
 func relay(dst *net.UDPConn, laddr net.Addr, src *net.UDPConn, timeout time.Duration) (err error) {
 	var n int
-	buf := pool.Get(BufSize)
+	buf := pool.Get(MTUTrie.GetMTU(src.LocalAddr().(*net.UDPAddr).IP))
 	defer pool.Put(buf)
 	for {
 		_ = src.SetReadDeadline(time.Now().Add(timeout))
