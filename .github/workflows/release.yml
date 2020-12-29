@@ -97,11 +97,11 @@ jobs:
         with:
           go-version: 1.15
 
-      - name: Get project dependencies
+      - name: Update Go
         run: |
-          go get golang.org/dl/go1.16beta1
-          $(go env GOPATH)/bin/go1.16beta1 download
-          ln -s $(go env GOPATH)/bin/go1.16beta1 $(command -v go)
+          go get -u golang.org/dl/go1.16beta1
+          $(go env GOROOT)/bin/go1.16beta1 download
+          ln -s $(go env GOROOT)/bin/go1.16beta1 $(command -v go)
 
       - name: Get project dependencies
         run: go mod download
