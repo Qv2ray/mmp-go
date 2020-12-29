@@ -89,8 +89,7 @@ func (d *Dispatcher) handleConn(laddr net.Addr, data []byte, n int) (err error) 
 	}
 
 	// send packet
-	_, err = rc.Write(data[:n])
-	if err != nil {
+	if _, err = rc.Write(data[:n]); err != nil {
 		return fmt.Errorf("[udp] handleConn write error: %v", err)
 	}
 	return nil
@@ -123,7 +122,7 @@ func (d *Dispatcher) GetOrBuildUCPConn(laddr net.Addr, data []byte) (rc *net.UDP
 		d.nm.Unlock()
 
 		// get user's context (preference)
-		userContext := d.group.UserContextPool.Get(laddr, d.group.Servers)
+		userContext := d.group.UserContextPool.GetOrInsert(laddr, d.group.Servers)
 
 		buf := pool.Get(len(data))
 		defer pool.Put(buf)
@@ -149,14 +148,13 @@ func (d *Dispatcher) GetOrBuildUCPConn(laddr net.Addr, data []byte) (rc *net.UDP
 		// relay
 		log.Printf("[udp] %s <-> %s <-> %s", laddr.String(), d.c.LocalAddr(), rc.RemoteAddr())
 		go func() {
-			// invoke natTimeoutFunc when necessary
 			_ = relay(d.c, laddr, rc, selectTimeout(content))
 			d.nm.Lock()
 			d.nm.Remove(socketIdent)
 			d.nm.Unlock()
 		}()
 	} else {
-		// exist such socket mapping, just verify or wait for its establishment
+		// such socket mapping exists; just verify or wait for its establishment
 		d.nm.Unlock()
 		<-conn.Establishing
 		if conn.UDPConn == nil {

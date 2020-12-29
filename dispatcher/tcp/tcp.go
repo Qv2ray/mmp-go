@@ -77,7 +77,7 @@ func (d *Dispatcher) handleConn(conn net.Conn) error {
 	}
 
 	// get user's context (preference)
-	userContext = d.group.UserContextPool.Get(conn.RemoteAddr(), d.group.Servers)
+	userContext = d.group.UserContextPool.GetOrInsert(conn.RemoteAddr(), d.group.Servers)
 
 	// auth every server
 	server, _ = d.Auth(buf, data, userContext)
@@ -94,12 +94,15 @@ func (d *Dispatcher) handleConn(conn net.Conn) error {
 	if err != nil {
 		return fmt.Errorf("[tcp] handleConn dial error: %v", err)
 	}
+
 	_ = rc.SetDeadline(time.Now().Add(DefaultTimeout))
 	_, err = rc.Write(data[:n])
 	if err != nil {
 		return fmt.Errorf("[tcp] handleConn write error: %v", err)
 	}
+
 	log.Printf("[tcp] %s <-> %s <-> %s", conn.RemoteAddr(), conn.LocalAddr(), rc.RemoteAddr())
+
 	if err := relay(conn, rc); err != nil {
 		if err, ok := err.(net.Error); ok && err.Timeout() {
 			return nil // ignore i/o timeout

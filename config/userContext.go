@@ -37,10 +37,10 @@ func (ctx *UserContext) Auth(probe func(*Server) ([]byte, bool)) (hit *Server, c
 	listCopy := lruList.GetListCopy()
 	defer lruList.GiveBackListCopy(listCopy)
 	// probe every server
-	for _, serverNode := range listCopy {
-		server := serverNode.Val.(*Server)
+	for i := range listCopy {
+		server := listCopy[i].Val.(*Server)
 		if content, ok := probe(server); ok {
-			lruList.Promote(serverNode)
+			lruList.Promote(listCopy[i])
 			return server, content
 		}
 	}
@@ -51,7 +51,7 @@ func (pool *UserContextPool) Infra() *lru.LRU {
 	return (*lru.LRU)(pool)
 }
 
-func (pool *UserContextPool) Get(addr net.Addr, servers []Server) *UserContext {
+func (pool *UserContextPool) GetOrInsert(addr net.Addr, servers []Server) *UserContext {
 	userIdent, _, _ := net.SplitHostPort(addr.String())
 	node, removed := pool.Infra().GetOrInsert(userIdent, func() (val interface{}) {
 		return NewUserContext(servers)
