@@ -99,7 +99,7 @@ jobs:
 
       - name: Update Go
         run: |
-          go get -u golang.org/dl/go1.16beta1
+          go gopath-get -u golang.org/dl/go1.16beta1
           $(go env GOPATH)/bin/go1.16beta1 download
           ln -sf $(go env GOPATH)/bin/go1.16beta1 $(command -v go)
 
