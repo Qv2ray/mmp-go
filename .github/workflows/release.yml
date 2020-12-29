@@ -95,14 +95,8 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v2
         with:
-          go-version: 1.15
-
-      - name: Update Go
-        run: |
-          go env -w GOBIN=$(pwd)/bin
-          go get -u golang.org/dl/go1.16beta1
-          ./bin/go1.16beta1 download
-          ln -sf $(pwd)/bin/go1.16beta1 $(command -v go)
+          go-version: 1.16beta1
+          stable: false
 
       - name: Get project dependencies
         run: go mod download
