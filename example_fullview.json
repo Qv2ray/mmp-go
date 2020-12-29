@@ -1,9 +1,9 @@
 {
-  "lruSize": 30,
+  "clientCapacity": 30,
   "groups": [
     {
       "port": 1090,
-      "lruSize": 100,
+      "clientCapacity": 500,
       "upstreams": [
         {
           "type": "outline",

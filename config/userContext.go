@@ -3,6 +3,7 @@ package config
 import (
 	"github.com/Qv2ray/mmp-go/common/lru"
 	"github.com/Qv2ray/mmp-go/common/lrulist"
+	"math/rand"
 	"net"
 	"time"
 )
@@ -14,9 +15,12 @@ type UserContextPool lru.LRU
 func NewUserContext(servers []Server) *UserContext {
 	list := make([]interface{}, len(servers))
 	for i := range servers {
-		list[i] = servers[i]
+		list[i] = &servers[i]
 	}
-	ctx := lrulist.NewWithList(10*time.Second, lrulist.InsertFront, list)
+	basicInterval := 10 * time.Second
+	offsetRange := 6.0
+	offset := time.Duration((rand.Float64()-0.5)*offsetRange*1000) * time.Millisecond
+	ctx := lrulist.NewWithList(basicInterval+offset, lrulist.InsertFront, list)
 	return (*UserContext)(ctx)
 }
 
@@ -33,10 +37,10 @@ func (ctx *UserContext) Auth(probe func(*Server) ([]byte, bool)) (hit *Server, c
 	listCopy := lruList.GetListCopy()
 	// probe every server
 	for _, serverNode := range listCopy {
-		server := serverNode.Val.(Server)
-		if content, ok := probe(&server); ok {
+		server := serverNode.Val.(*Server)
+		if content, ok := probe(server); ok {
 			lruList.Promote(serverNode)
-			return &server, content
+			return server, content
 		}
 	}
 	return nil, nil

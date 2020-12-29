@@ -13,8 +13,8 @@ import (
 )
 
 type Config struct {
-	Groups  []Group `json:"groups"`
-	LRUSize int     `json:"lruSize"`
+	Groups         []Group `json:"groups"`
+	ClientCapacity int     `json:"clientCapacity"`
 }
 type Server struct {
 	Target    string `json:"target"`
@@ -35,7 +35,8 @@ var once sync.Once
 var Version = "debug"
 
 const (
-	DefaultLRUSize = 50
+	// around 30kB per client if there are 300 servers to forward
+	DefaultClientCapacity = 100
 )
 
 func (g *Group) BuildMasterKeys() {
@@ -119,13 +120,13 @@ func check(config *Config) (err error) {
 	return
 }
 func build(config *Config) {
-	globalLRUSize := config.LRUSize
-	if globalLRUSize == 0 {
-		globalLRUSize = DefaultLRUSize
+	globalClientCapacity := config.ClientCapacity
+	if globalClientCapacity == 0 {
+		globalClientCapacity = DefaultClientCapacity
 	}
 	for i := range config.Groups {
 		g := &config.Groups[i]
-		g.BuildUserContextPool(globalLRUSize)
+		g.BuildUserContextPool(globalClientCapacity)
 		g.BuildMasterKeys()
 	}
 }

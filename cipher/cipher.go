@@ -5,7 +5,7 @@ import (
 	"crypto/cipher"
 	"crypto/md5"
 	"crypto/sha1"
-	"github.com/Qv2ray/mmp-go/common/leakybuf"
+	"github.com/Qv2ray/mmp-go/common/pool"
 	"golang.org/x/crypto/chacha20poly1305"
 	"golang.org/x/crypto/hkdf"
 	"io"
@@ -26,27 +26,28 @@ type CipherConf struct {
 	NewCipher func(key []byte) (cipher.AEAD, error)
 }
 
-const TCPMaxTagSize = 16
 const MaxNonceSize = 12
 
 var ZeroNonce [MaxNonceSize]byte
-var TCPReuseDstBuf [2 + TCPMaxTagSize]byte
+var ReusedInfo = []byte("ss-subkey")
 
 func (conf *CipherConf) Verify(buf []byte, masterKey []byte, salt []byte, cipherText []byte) ([]byte, bool) {
-	subKey := leakybuf.Get(conf.KeyLen)
-	defer leakybuf.Put(subKey)
+	subKey := pool.Get(conf.KeyLen)
+	defer pool.Put(subKey)
 	kdf := hkdf.New(
 		sha1.New,
 		masterKey,
 		salt,
-		[]byte("ss-subkey"),
+		ReusedInfo,
 	)
 	io.ReadFull(kdf, subKey)
 
 	ciph, _ := conf.NewCipher(subKey)
 
-	_, err := ciph.Open(buf[:0], ZeroNonce[:conf.NonceLen], cipherText, nil)
-	return buf[:len(cipherText)-ciph.Overhead()], err == nil
+	if _, err := ciph.Open(buf[:0], ZeroNonce[:conf.NonceLen], cipherText, nil); err != nil {
+		return nil, false
+	}
+	return buf[:len(cipherText)-ciph.Overhead()], true
 }
 
 func MD5Sum(d []byte) []byte {

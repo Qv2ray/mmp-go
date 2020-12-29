@@ -3,7 +3,7 @@ package udp
 import (
 	"fmt"
 	"github.com/Qv2ray/mmp-go/cipher"
-	"github.com/Qv2ray/mmp-go/common/leakybuf"
+	"github.com/Qv2ray/mmp-go/common/pool"
 	"github.com/Qv2ray/mmp-go/config"
 	"github.com/Qv2ray/mmp-go/dispatcher"
 	"golang.org/x/net/dns/dnsmessage"
@@ -13,7 +13,10 @@ import (
 )
 
 const (
-	BufSize = 64 * 1024
+	BufSize           = 64 * 1024
+	BasicLen          = 32
+	DefaultNatTimeout = 3 * time.Minute
+	DnsQueryTimeout   = 17 * time.Second // RFC 5452
 )
 
 func init() {
@@ -44,14 +47,14 @@ func (d *Dispatcher) Listen() (err error) {
 			log.Printf("[error] ReadFrom: %v", err)
 			continue
 		}
-		data := leakybuf.Get(n)
+		data := pool.Get(n)
 		copy(data, buf[:n])
 		go func() {
 			err := d.handleConn(laddr, data, n)
 			if err != nil {
 				log.Println(err)
 			}
-			leakybuf.Put(data)
+			pool.Put(data)
 		}()
 	}
 }
@@ -78,31 +81,31 @@ func selectTimeout(packet []byte) time.Duration {
 	al := addrLen(packet)
 	if len(packet) < al {
 		// err: packet with inadequate length
-		return defaultNatTimeout
+		return DefaultNatTimeout
 	}
 	packet = packet[al:]
 	var dmessage dnsmessage.Message
-	err := dmessage.Unpack(packet)
-	if err != nil {
-		return defaultNatTimeout
+	if err := dmessage.Unpack(packet); err != nil {
+		return DefaultNatTimeout
 	}
-	return dnsQueryTimeout
+	return DnsQueryTimeout
 }
 
 func (d *Dispatcher) handleConn(laddr net.Addr, data []byte, n int) (err error) {
 	// get user's context (preference)
 	userContext := d.group.UserContextPool.Get(laddr, d.group.Servers)
 
-	buf := leakybuf.Get(n)
-	defer leakybuf.Put(buf)
+	buf := pool.Get(n)
+	defer pool.Put(buf)
 	// auth every server
 	server, content := d.Auth(buf, data[:n], userContext)
 	if server == nil {
 		return nil
 	}
-	timeout := selectTimeout(content)
 	// get conn or dial and relay
-	rc, err := d.GetOrBuildUCPConn(laddr, server.Target, timeout)
+	rc, err := d.GetOrBuildUCPConn(laddr, server.Target, func() time.Duration {
+		return selectTimeout(content)
+	})
 	if err != nil {
 		return fmt.Errorf("[udp] handleConn dial target error: %v", err)
 	}
@@ -116,7 +119,7 @@ func (d *Dispatcher) handleConn(laddr net.Addr, data []byte, n int) (err error) 
 }
 
 // connTimeout is the timeout of connection to build if not exists
-func (d *Dispatcher) GetOrBuildUCPConn(laddr net.Addr, target string, natTimeout time.Duration) (rc *UDPConn, err error) {
+func (d *Dispatcher) GetOrBuildUCPConn(laddr net.Addr, target string, natTimeoutFunc func() time.Duration) (rc *net.UDPConn, err error) {
 	socketIdent := laddr.String()
 	d.nm.Lock()
 	var conn *UDPConn
@@ -132,16 +135,16 @@ func (d *Dispatcher) GetOrBuildUCPConn(laddr net.Addr, target string, natTimeout
 			d.nm.Unlock()
 			return nil, fmt.Errorf("GetOrBuildUCPConn dial error: %v", err)
 		}
-		_rconn := rconn.(*net.UDPConn)
+		rc = rconn.(*net.UDPConn)
 		d.nm.Lock()
 		d.nm.Remove(socketIdent) // close channel to inform that establishment ends
-		d.nm.Insert(socketIdent, _rconn)
-		rc, _ = d.nm.Get(socketIdent)
+		d.nm.Insert(socketIdent, rc)
 		d.nm.Unlock()
 		// relay
 		log.Printf("[udp] %s <-> %s <-> %s", laddr.String(), d.c.LocalAddr(), rc.RemoteAddr())
 		go func() {
-			_ = relay(d.c, laddr, _rconn, natTimeout)
+			// invoke natTimeoutFunc when necessary
+			_ = relay(d.c, laddr, rc, natTimeoutFunc())
 			d.nm.Lock()
 			d.nm.Remove(socketIdent)
 			d.nm.Unlock()
@@ -152,10 +155,10 @@ func (d *Dispatcher) GetOrBuildUCPConn(laddr net.Addr, target string, natTimeout
 		<-conn.Establishing
 		if conn.UDPConn == nil {
 			// establishment ended and retrieve the result
-			return d.GetOrBuildUCPConn(laddr, target, natTimeout)
+			return d.GetOrBuildUCPConn(laddr, target, natTimeoutFunc)
 		} else {
 			// establishment succeeded
-			rc = conn
+			rc = conn.UDPConn
 		}
 	}
 	return rc, nil
@@ -163,15 +166,15 @@ func (d *Dispatcher) GetOrBuildUCPConn(laddr net.Addr, target string, natTimeout
 
 func relay(dst *net.UDPConn, laddr net.Addr, src *net.UDPConn, timeout time.Duration) (err error) {
 	var n int
-	buf := leakybuf.Get(BufSize)
-	defer leakybuf.Put(buf)
+	buf := pool.Get(BufSize)
+	defer pool.Put(buf)
 	for {
 		_ = src.SetReadDeadline(time.Now().Add(timeout))
 		n, _, err = src.ReadFrom(buf)
 		if err != nil {
 			return
 		}
-		_ = dst.SetWriteDeadline(time.Now().Add(timeout))
+		_ = dst.SetWriteDeadline(time.Now().Add(DefaultNatTimeout)) // should keep consistent
 		_, err = dst.WriteTo(buf[:n], laddr)
 		if err != nil {
 			return
@@ -180,8 +183,8 @@ func relay(dst *net.UDPConn, laddr net.Addr, src *net.UDPConn, timeout time.Dura
 }
 
 func (d *Dispatcher) Auth(buf []byte, data []byte, userContext *config.UserContext) (hit *config.Server, content []byte) {
-	if len(data) <= 32 {
-		return nil, nil //fmt.Errorf("length of data should be greater than 32")
+	if len(data) < BasicLen {
+		return nil, nil
 	}
 	return userContext.Auth(func(server *config.Server) ([]byte, bool) {
 		return probe(buf, data, server)

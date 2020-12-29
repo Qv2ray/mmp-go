@@ -51,6 +51,7 @@ func (l *LruList) Close() (err error) {
 	return nil
 }
 
+// GetListCopy should be called when you want to traverse the list
 func (l *LruList) GetListCopy() []*Node {
 	list := make([]*Node, len(l.list))
 	l.muList.Lock()
@@ -59,11 +60,12 @@ func (l *LruList) GetListCopy() []*Node {
 	return list
 }
 
-// promote but lazy sort
+// promote but lazy sort. O(1)
 func (l *LruList) Promote(node *Node) {
 	atomic.AddUint32(&node.weight, 1)
 }
 
+// spend O(n) time to insert
 func (l *LruList) Insert(val interface{}) *Node {
 	node := &Node{Val: val}
 	if l.insertStrategy == InsertFront {
@@ -73,6 +75,8 @@ func (l *LruList) Insert(val interface{}) *Node {
 	}
 	l.muList.Lock()
 	defer l.muList.Unlock()
+
+	// insert into a roughly right position
 	insertBefore := len(l.list)
 	for i := range l.list {
 		if l.list[i].weight < node.weight {
@@ -80,6 +84,8 @@ func (l *LruList) Insert(val interface{}) *Node {
 			break
 		}
 	}
+
+	// expand the list
 	if cap(l.list) > len(l.list) {
 		l.list = l.list[:len(l.list)+1]
 		for i := len(l.list) - 1; i > insertBefore; i-- {
@@ -92,13 +98,13 @@ func (l *LruList) Insert(val interface{}) *Node {
 			list[i+1] = l.list[i]
 		}
 		list[insertBefore] = node
-		copy(list[:insertBefore], l.list)
+		copy(list[:insertBefore], l.list[:insertBefore])
 		l.list = list
 	}
 	return node
 }
 
-// O(n) scan
+// O(n) scan to remove a node
 func (l *LruList) Remove(node *Node) {
 	l.muList.Lock()
 	defer l.muList.Unlock()

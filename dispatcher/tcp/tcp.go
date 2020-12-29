@@ -3,13 +3,19 @@ package tcp
 import (
 	"fmt"
 	"github.com/Qv2ray/mmp-go/cipher"
-	"github.com/Qv2ray/mmp-go/common/leakybuf"
+	"github.com/Qv2ray/mmp-go/common/pool"
 	"github.com/Qv2ray/mmp-go/config"
 	"github.com/Qv2ray/mmp-go/dispatcher"
 	"io"
 	"log"
 	"net"
 	"time"
+)
+
+//[salt][encrypted payload length][length tag][encrypted payload][payload tag]
+const (
+	DefaultTimeout = 7440 * time.Second
+	BasicLen       = 32 + 2 + 16
 )
 
 func init() {
@@ -60,12 +66,11 @@ func (d *Dispatcher) handleConn(conn net.Conn) error {
 		userContext *config.UserContext
 	)
 	defer conn.Close()
-	//[salt][encrypted payload length][length tag][encrypted payload][payload tag]
-	datalen := 32 + 2 + 16
-	var data = leakybuf.Get(datalen)
-	defer leakybuf.Put(data)
-	var buf = leakybuf.Get(datalen)
-	defer leakybuf.Put(buf)
+
+	var data = pool.Get(BasicLen)
+	defer pool.Put(data)
+	var buf = pool.Get(BasicLen)
+	defer pool.Put(buf)
 	n, err := io.ReadFull(conn, data)
 	if err != nil {
 		return fmt.Errorf("[tcp] handleConn readfull error: %v", err)
@@ -89,6 +94,7 @@ func (d *Dispatcher) handleConn(conn net.Conn) error {
 	if err != nil {
 		return fmt.Errorf("[tcp] handleConn dial error: %v", err)
 	}
+	_ = rc.SetDeadline(time.Now().Add(DefaultTimeout))
 	_, err = rc.Write(data[:n])
 	if err != nil {
 		return fmt.Errorf("[tcp] handleConn write error: %v", err)
@@ -122,8 +128,8 @@ func relay(lc, rc net.Conn) error {
 }
 
 func (d *Dispatcher) Auth(buf []byte, data []byte, userContext *config.UserContext) (hit *config.Server, content []byte) {
-	if len(data) < 50 {
-		return nil, nil //fmt.Errorf("length of data should be no less than 50")
+	if len(data) < BasicLen {
+		return nil, nil
 	}
 	return userContext.Auth(func(server *config.Server) ([]byte, bool) {
 		return probe(buf, data, server)

@@ -3,12 +3,6 @@ package udp
 import (
 	"net"
 	"sync"
-	"time"
-)
-
-const (
-	defaultNatTimeout = 2 * time.Minute
-	dnsQueryTimeout   = 17 * time.Second // RFC 5452
 )
 
 type UDPConn struct {
