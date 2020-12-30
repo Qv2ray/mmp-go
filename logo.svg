@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="226.8mm" height="102.86mm" version="1.1" viewBox="0 0 226.8 102.86" xmlns="http://www.w3.org/2000/svg" xmlns:cc="http://creativecommons.org/ns#" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:xlink="http://www.w3.org/1999/xlink">
+ <title>Mega Multiplexer</title>
+ <defs>
+  <linearGradient id="c" x1="53.975" x2="4.2333" y1="102.66" y2="102.66" gradientTransform="translate(7.4083 -74.083)" gradientUnits="userSpaceOnUse">
+   <stop stop-color="#197dbf" offset="0"/>
+   <stop stop-color="#197dbf" stop-opacity="0" offset="1"/>
+  </linearGradient>
+  <linearGradient id="b" x1="38.1" x2="4.2333" y1="139.7" y2="139.7" gradientTransform="translate(7.4083 -74.083)" gradientUnits="userSpaceOnUse">
+   <stop stop-color="#7488a1" offset="0"/>
+   <stop stop-color="#7488a1" stop-opacity="0" offset="1"/>
+  </linearGradient>
+  <linearGradient id="a" x1="38.1" x2="4.2333" y1="123.82" y2="123.82" gradientTransform="translate(7.4083 -74.083)" gradientUnits="userSpaceOnUse">
+   <stop stop-color="#e482a3" offset="0"/>
+   <stop stop-color="#e482a3" stop-opacity="0" offset="1"/>
+  </linearGradient>
+ </defs>
+ <metadata>
+  <rdf:RDF>
+   <cc:Work rdf:about="">
+    <dc:format>image/svg+xml</dc:format>
+    <dc:type rdf:resource="http://purl.org/dc/dcmitype/StillImage"/>
+    <dc:title>Mega Multiplexer</dc:title>
+    <dc:date>2020-12-31T01:38+08:00</dc:date>
+    <dc:creator>
+     <cc:Agent>
+      <dc:title>Student Main</dc:title>
+     </cc:Agent>
+    </dc:creator>
+    <dc:description>logo of Mega Multiplexer
+
+colors are picked from shadowsocks-windows, shadowsocksr, shadowsocks-android</dc:description>
+    <dc:contributor>
+     <cc:Agent>
+      <dc:title>Student Main</dc:title>
+     </cc:Agent>
+    </dc:contributor>
+    <dc:rights>
+     <cc:Agent>
+      <dc:title>GNU Affero General Public License v3.0</dc:title>
+     </cc:Agent>
+    </dc:rights>
+   </cc:Work>
+  </rdf:RDF>
+ </metadata>
+ <g transform="translate(8.8875 7.8538)">
+  <g>
+   <path d="m11.113 55.033h149.75l5.2917 5.2917-5.2917 5.2916h-149.75z" fill="url(#b)"/>
+   <path d="m11.113 39.158 165.63-1e-5 5.2917 5.2917-5.2917 5.2917-165.63 1e-5z" fill="url(#a)"/>
+   <path d="m11.642 23.283h180.98l5.2917 5.2917-5.2917 5.2917h-180.98z" fill="url(#c)"/>
+  </g>
+  <text x="29.271111" y="75.002678" font-family="Staatliches" font-size="90.311px" stroke-width=".79375" style="line-height:1.25" xml:space="preserve"><tspan x="29.271111" y="75.002678" rotate="0 0 0 0" fill="#ffffff" font-size="90.311px" stroke="#000000" stroke-width=".79375">MMP</tspan></text>
+ </g>
+</svg>
