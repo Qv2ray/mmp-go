@@ -67,6 +67,10 @@ func (conf *CipherConf) Verify(buf []byte, masterKey []byte, salt []byte, cipher
 	return buf[:len(cipherText)-ciph.Overhead()], true
 }
 
+// Warning:
+// UnsafeVerifyATyp brings less than 25% performance improvement in most cases.
+// It is dangerous and NOT recommended.
+// Do not use it if you feel unnecessary.
 func (conf *CipherConf) UnsafeVerifyATyp(buf []byte, masterKey []byte, salt []byte, cipherText []byte, subKey *[]byte) bool {
 	var sk []byte
 	if subKey != nil && len(*subKey) == conf.KeyLen {
