@@ -39,18 +39,27 @@ var (
 	ReusedInfo = []byte("ss-subkey")
 )
 
-func (conf *CipherConf) Verify(buf []byte, masterKey []byte, salt []byte, cipherText []byte) ([]byte, bool) {
-	subKey := pool.Get(conf.KeyLen)
-	defer pool.Put(subKey)
-	kdf := hkdf.New(
-		sha1.New,
-		masterKey,
-		salt,
-		ReusedInfo,
-	)
-	io.ReadFull(kdf, subKey)
+func (conf *CipherConf) Verify(buf []byte, masterKey []byte, salt []byte, cipherText []byte, subKey *[]byte) ([]byte, bool) {
+	var sk []byte
+	if subKey != nil && len(*subKey) == conf.KeyLen {
+		sk = *subKey
+	} else {
+		sk = pool.Get(conf.KeyLen)
+		defer pool.Put(sk)
+		kdf := hkdf.New(
+			sha1.New,
+			masterKey,
+			salt,
+			ReusedInfo,
+		)
+		io.ReadFull(kdf, sk)
+		if subKey != nil && cap(*subKey) >= conf.KeyLen {
+			*subKey = (*subKey)[:conf.KeyLen]
+			copy(*subKey, sk)
+		}
+	}
 
-	ciph, _ := conf.NewCipher(subKey)
+	ciph, _ := conf.NewCipher(sk)
 
 	if _, err := ciph.Open(buf[:0], ZeroNonce[:conf.NonceLen], cipherText, nil); err != nil {
 		return nil, false
@@ -58,18 +67,27 @@ func (conf *CipherConf) Verify(buf []byte, masterKey []byte, salt []byte, cipher
 	return buf[:len(cipherText)-ciph.Overhead()], true
 }
 
-func (conf *CipherConf) UnsafeVerifyATyp(buf []byte,masterKey []byte, salt []byte, cipherText []byte) bool {
-	subKey := pool.Get(conf.KeyLen)
-	defer pool.Put(subKey)
-	kdf := hkdf.New(
-		sha1.New,
-		masterKey,
-		salt,
-		ReusedInfo,
-	)
-	io.ReadFull(kdf, subKey)
+func (conf *CipherConf) UnsafeVerifyATyp(buf []byte, masterKey []byte, salt []byte, cipherText []byte, subKey *[]byte) bool {
+	var sk []byte
+	if subKey != nil && len(*subKey) > 0 {
+		sk = *subKey
+	} else {
+		sk = pool.Get(conf.KeyLen)
+		defer pool.Put(sk)
+		kdf := hkdf.New(
+			sha1.New,
+			masterKey,
+			salt,
+			ReusedInfo,
+		)
+		io.ReadFull(kdf, sk)
+		if subKey != nil && cap(*subKey) >= conf.KeyLen {
+			*subKey = (*subKey)[:conf.KeyLen]
+			copy(*subKey, sk)
+		}
+	}
 
-	ciph, _ := conf.NewPartialCipher(subKey)
+	ciph, _ := conf.NewPartialCipher(sk)
 	plain := ciph.OpenWithoutCheck(buf[:0], ZeroNonce[:conf.NonceLen], cipherText[:1])
 	atyp := plain[0]
 	switch atyp {
