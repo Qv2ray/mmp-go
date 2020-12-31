@@ -1,6 +1,6 @@
 module github.com/Qv2ray/mmp-go
 
-go 1.15
+go 1.16
 
 require (
 	github.com/studentmain/smaead v0.0.0-20201230222852-75aa2464875d

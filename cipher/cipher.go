@@ -69,7 +69,7 @@ func (conf *CipherConf) Verify(buf []byte, masterKey []byte, salt []byte, cipher
 
 func (conf *CipherConf) UnsafeVerifyATyp(buf []byte, masterKey []byte, salt []byte, cipherText []byte, subKey *[]byte) bool {
 	var sk []byte
-	if subKey != nil && len(*subKey) > 0 {
+	if subKey != nil && len(*subKey) == conf.KeyLen {
 		sk = *subKey
 	} else {
 		sk = pool.Get(conf.KeyLen)
