@@ -1,5 +1,7 @@
 # mmp-go
 
+![Mega Multiplexer logo](logo.png)
+
 Mega Multiplexer, port mutiplexer for shadowsocks, supports AEAD methods only.
 
 ### Intro
