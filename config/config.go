@@ -9,10 +9,13 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"path"
 	"sync"
+	"syscall"
 )
 
 type Config struct {
+	ConfPath       string  `json:"-"`
 	Groups         []Group `json:"groups"`
 	ClientCapacity int     `json:"clientCapacity"`
 }
@@ -33,8 +36,11 @@ type Group struct {
 var config *Config
 var once sync.Once
 var Version = "debug"
+var DaemonMode bool
 
 const (
+	// program name
+	Name = "mmp-go"
 	// around 30kB per client if there are 300 servers to forward
 	DefaultClientCapacity = 100
 )
@@ -135,32 +141,94 @@ func build(config *Config) {
 		g.BuildMasterKeys()
 	}
 }
+func redirectOut(path string) error {
+	file, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return err
+	}
+	if err = syscall.Dup2(int(file.Fd()), int(os.Stdin.Fd())); err != nil {
+		return err
+	}
+	if err = syscall.Dup2(int(file.Fd()), int(os.Stdout.Fd())); err != nil {
+		return err
+	}
+	if err = syscall.Dup2(int(file.Fd()), int(os.Stderr.Fd())); err != nil {
+		return err
+	}
+	if file.Fd() > 2 {
+		file.Close()
+	}
+	return err
+}
+
+func BuildConfig(confPath string) (conf *Config) {
+	conf = new(Config)
+	conf.ConfPath = confPath
+	b, err := ioutil.ReadFile(confPath)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	if err = json.Unmarshal(b, conf); err != nil {
+		log.Fatalln(err)
+	}
+	if err = parseUpstreams(conf); err != nil {
+		log.Fatalln(err)
+	}
+	if err = check(conf); err != nil {
+		log.Fatalln(err)
+	}
+	build(conf)
+	return
+}
+
+func SetConfig(conf *Config) {
+	config = conf
+}
+
 func GetConfig() *Config {
 	once.Do(func() {
 		version := flag.Bool("v", false, "version")
-		filename := flag.String("conf", "example.json", "config file path")
+		sig := flag.String("s", "", "signal: start/stop/reload")
+		confPath := flag.String("conf", "example.json", "config file path")
+		logPath := flag.String("log", "", "the file path to write log")
 		flag.Parse()
 
 		if *version {
 			fmt.Println(Version)
 			os.Exit(0)
 		}
-
-		config = new(Config)
-		b, err := ioutil.ReadFile(*filename)
-		if err != nil {
-			log.Fatalln(err)
+		if !DaemonMode {
+			switch *sig {
+			case "start":
+				if !path.IsAbs(*confPath) {
+					log.Fatalln("[error] daemon needs an absolute path of conf")
+				}
+				if err := start(); err != nil {
+					log.Fatalln("[error]", err)
+				}
+				os.Exit(0)
+			case "stop":
+				if err := stop(); err != nil {
+					log.Fatalln("[error]", err)
+				}
+				os.Exit(0)
+			case "reload":
+				if err := reload(); err != nil {
+					log.Fatalln("[error]", err)
+				}
+				os.Exit(0)
+			case "":
+			default:
+				log.Fatalln(fmt.Sprintf(`[error] invalid option: "-s %v"`, *sig))
+			}
 		}
-		if err = json.Unmarshal(b, config); err != nil {
-			log.Fatalln(err)
+		if *logPath != "" {
+			err := redirectOut(*logPath)
+			if err != nil {
+				log.Fatalln(err)
+			}
 		}
-		if err = parseUpstreams(config); err != nil {
-			log.Fatalln(err)
-		}
-		if err = check(config); err != nil {
-			log.Fatalln(err)
-		}
-		build(config)
+		config = BuildConfig(*confPath)
 	})
 	return config
 }

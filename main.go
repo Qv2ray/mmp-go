@@ -10,27 +10,49 @@ import (
 )
 
 var protocols = [...]string{"tcp", "udp"}
+var wg sync.WaitGroup
 
 func main() {
+	if config.DaemonMode {
+		// handle reload
+		go signalHandler()
+	}
+
+	mMutex.Lock()
 	conf := config.GetConfig()
-	var wg sync.WaitGroup
 	for i := range conf.Groups {
 		wg.Add(1)
-		go func(group *config.Group) {
-			err := listen(group, protocols[:])
-			if err != nil {
-				log.Fatalln(err)
-			}
-			wg.Done()
-		}(&conf.Groups[i])
+		go listen(&conf.Groups[i])
 	}
+	mMutex.Unlock()
 	wg.Wait()
+	log.Println("quit")
 }
 
-func listen(group *config.Group, protocols []string) error {
+func listen(group *config.Group) {
+	mMutex.Lock()
+	if _, ok := mPortDispatcher[group.Port]; !ok {
+		mPortDispatcher[group.Port] = new([2]dispatcher.Dispatcher)
+	}
+	mMutex.Unlock()
+	err := _listen(group, protocols[:])
+	if err != nil {
+		// listening but error
+		mMutex.Lock()
+		if _, ok := mPortDispatcher[group.Port]; ok {
+			log.Fatalln(err)
+		}
+		mMutex.Unlock()
+	}
+	wg.Done()
+}
+
+func _listen(group *config.Group, protocols []string) error {
 	ch := make(chan error, len(protocols))
-	for _, protocol := range protocols {
+	for i, protocol := range protocols {
 		d, _ := dispatcher.New(protocol, group)
+		t := mPortDispatcher[group.Port]
+		(*t)[i] = d
 		go func() {
 			var err error
 			err = d.Listen()
