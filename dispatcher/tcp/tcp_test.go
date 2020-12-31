@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func BenchmarkAuth(b *testing.B) {
+func BenchmarkDispatcher_Auth(b *testing.B) {
 	const nServers = 100
 	g := new(config.Group)
 	for i := 0; i < nServers; i++ {
