@@ -23,6 +23,12 @@
           "type": "outline",
           "server": "131.13.130.120",
           "link": "https://example.com/3BlbnNzaC1rZXktdjEAAAAABG/shadowbox_config.json"
+        },
+        {
+          "type": "outline",
+          "server": "131.13.130.121",
+          "apiUrl": "https://131.13.130.121:21230/4pn_faGFTa-bci6IA6ctYB",
+          "apiCertSha256": "07B19FB83B9EFDF12DC971C311B6B7931A589BC4BE389F306F45532813DEFC9A"
         }
       ],
       "servers": [

@@ -2,6 +2,10 @@ package config
 
 import (
 	"bytes"
+	"crypto"
+	"crypto/tls"
+	"crypto/x509"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"golang.org/x/crypto/ssh"
@@ -9,6 +13,7 @@ import (
 	"net"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -20,6 +25,8 @@ type Outline struct {
 	SSHUsername   string `json:"sshUsername"`
 	SSHPrivateKey string `json:"sshPrivateKey"`
 	SSHPassword   string `json:"sshPassword"`
+	ApiUrl        string `json:"apiUrl"`
+	ApiCertSha256 string `json:"apiCertSha256"`
 }
 
 const timeout = 10 * time.Second
@@ -30,6 +37,7 @@ func (outline Outline) getConfig() ([]byte, error) {
 	}
 	tryList := []func() ([]byte, error){
 		outline.getConfigFromLink,
+		outline.getConfigFromApi,
 		outline.getConfigFromSSH,
 	}
 	var (
@@ -74,6 +82,36 @@ func (outline Outline) getConfigFromLink() ([]byte, error) {
 		Timeout: timeout,
 	}
 	resp, err := client.Get(outline.Link)
+	if err != nil {
+		return nil, fmt.Errorf("getConfigFromLink failed: %v", err)
+	}
+	defer resp.Body.Close()
+	return ioutil.ReadAll(resp.Body)
+}
+
+func (outline Outline) getConfigFromApi() ([]byte, error) {
+	if outline.ApiUrl == "" || outline.ApiCertSha256 == "" {
+		return nil, nil
+	}
+	client := http.Client{
+		Transport: &http.Transport{TLSClientConfig: &tls.Config{
+			InsecureSkipVerify: true,
+			VerifyPeerCertificate: func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
+				h := crypto.SHA256.New()
+				for _, line := range rawCerts {
+					h.Write(line)
+				}
+				fingerprint := hex.EncodeToString(h.Sum(nil))
+				if !strings.EqualFold(fingerprint, outline.ApiCertSha256) {
+					return fmt.Errorf("incorrect certSha256 from server: %v", strings.ToUpper(fingerprint))
+				}
+				return nil
+			},
+		}},
+		Timeout: timeout,
+	}
+	outline.ApiUrl = strings.TrimSuffix(outline.ApiUrl, "/")
+	resp, err := client.Get(fmt.Sprintf("%v/access-keys", outline.ApiUrl))
 	if err != nil {
 		return nil, fmt.Errorf("getConfigFromLink failed: %v", err)
 	}
@@ -150,24 +188,27 @@ func (outline Outline) GetServers() (servers []Server, err error) {
 
 type AccessKey struct {
 	ID               string `json:"id"`
-	MetricsID        string `json:"metricsId"`
 	Name             string `json:"name"`
 	Password         string `json:"password"`
 	Port             int    `json:"port"`
 	EncryptionMethod string `json:"encryptionMethod"`
+	Method           string `json:"method"` // the alias of EncryptionMethod
 }
 
 func (key *AccessKey) ToServer(host string) Server {
+	method := key.EncryptionMethod
+	if method == "" {
+		method = key.Method
+	}
 	return Server{
 		Target:   net.JoinHostPort(host, strconv.Itoa(key.Port)),
-		Method:   key.EncryptionMethod,
+		Method:   method,
 		Password: key.Password,
 	}
 }
 
 type ShadowboxConfig struct {
 	AccessKeys []AccessKey `json:"accessKeys"`
-	NextID     int         `json:"nextId"`
 }
 
 func (c *ShadowboxConfig) ToServers(host string) []Server {
