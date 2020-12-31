@@ -146,5 +146,5 @@ func probe(buf []byte, data []byte, server *config.Server) ([]byte, bool) {
 	salt := data[:conf.SaltLen]
 	cipherText := data[conf.SaltLen : conf.SaltLen+2+conf.TagLen]
 
-	return conf.Verify(buf, server.MasterKey, salt, cipherText)
+	return conf.Verify(buf, server.MasterKey, salt, cipherText, nil)
 }

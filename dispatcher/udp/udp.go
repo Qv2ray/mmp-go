@@ -208,5 +208,10 @@ func probe(buf []byte, data []byte, server *config.Server) ([]byte, bool) {
 	salt := data[:conf.SaltLen]
 	cipherText := data[conf.SaltLen:]
 
-	return conf.Verify(buf, server.MasterKey, salt, cipherText)
+	subKey := pool.Get(conf.KeyLen)[:0]
+	defer pool.Put(subKey)
+	if !conf.UnsafeVerifyATyp(buf, server.MasterKey, salt, cipherText, &subKey) {
+		return nil, false
+	}
+	return conf.Verify(buf, server.MasterKey, salt, cipherText, &subKey)
 }
