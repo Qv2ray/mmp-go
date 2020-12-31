@@ -12,13 +12,6 @@ import (
 	"io"
 )
 
-var CiphersConf = map[string]CipherConf{
-	"chacha20-ietf-poly1305": {KeyLen: 32, SaltLen: 32, NonceLen: 12, TagLen: 16, NewCipher: chacha20poly1305.New, NewPartialCipher: NewPC20P1305},
-	"chacha20-poly1305":      {KeyLen: 32, SaltLen: 32, NonceLen: 12, TagLen: 16, NewCipher: chacha20poly1305.New, NewPartialCipher: NewPC20P1305},
-	"aes-256-gcm":            {KeyLen: 32, SaltLen: 32, NonceLen: 12, TagLen: 16, NewCipher: NewGcm, NewPartialCipher: NewPGcm},
-	"aes-128-gcm":            {KeyLen: 16, SaltLen: 16, NonceLen: 12, TagLen: 16, NewCipher: NewGcm, NewPartialCipher: NewPGcm},
-}
-
 type CipherConf struct {
 	KeyLen           int
 	SaltLen          int
@@ -28,10 +21,23 @@ type CipherConf struct {
 	NewPartialCipher func(key []byte) (smaead.PartialAEAD, error)
 }
 
-const MaxNonceSize = 12
+const (
+	MaxNonceSize = 12
+	ATypeIPv4    = 1
+	ATypeDomain  = 3
+	ATypeIpv6    = 4
+)
 
-var ZeroNonce [MaxNonceSize]byte
-var ReusedInfo = []byte("ss-subkey")
+var (
+	CiphersConf = map[string]CipherConf{
+		"chacha20-ietf-poly1305": {KeyLen: 32, SaltLen: 32, NonceLen: 12, TagLen: 16, NewCipher: chacha20poly1305.New, NewPartialCipher: NewPC20P1305},
+		"chacha20-poly1305":      {KeyLen: 32, SaltLen: 32, NonceLen: 12, TagLen: 16, NewCipher: chacha20poly1305.New, NewPartialCipher: NewPC20P1305},
+		"aes-256-gcm":            {KeyLen: 32, SaltLen: 32, NonceLen: 12, TagLen: 16, NewCipher: NewGcm, NewPartialCipher: NewPGcm},
+		"aes-128-gcm":            {KeyLen: 16, SaltLen: 16, NonceLen: 12, TagLen: 16, NewCipher: NewGcm, NewPartialCipher: NewPGcm},
+	}
+	ZeroNonce  [MaxNonceSize]byte
+	ReusedInfo = []byte("ss-subkey")
+)
 
 func (conf *CipherConf) Verify(buf []byte, masterKey []byte, salt []byte, cipherText []byte) ([]byte, bool) {
 	subKey := pool.Get(conf.KeyLen)
@@ -52,7 +58,7 @@ func (conf *CipherConf) Verify(buf []byte, masterKey []byte, salt []byte, cipher
 	return buf[:len(cipherText)-ciph.Overhead()], true
 }
 
-func (conf *CipherConf) UnsafeVerifyATyp(masterKey []byte, salt []byte, cipherText []byte) bool {
+func (conf *CipherConf) UnsafeVerifyATyp(buf []byte,masterKey []byte, salt []byte, cipherText []byte) bool {
 	subKey := pool.Get(conf.KeyLen)
 	defer pool.Put(subKey)
 	kdf := hkdf.New(
@@ -64,9 +70,10 @@ func (conf *CipherConf) UnsafeVerifyATyp(masterKey []byte, salt []byte, cipherTe
 	io.ReadFull(kdf, subKey)
 
 	ciph, _ := conf.NewPartialCipher(subKey)
-	plain := ciph.OpenWithoutCheck(nil, ZeroNonce[:conf.NonceLen], cipherText[:1])
+	plain := ciph.OpenWithoutCheck(buf[:0], ZeroNonce[:conf.NonceLen], cipherText[:1])
 	atyp := plain[0]
-	if atyp == 1 || atyp == 3 || atyp == 4 {
+	switch atyp {
+	case ATypeIPv4, ATypeDomain, ATypeIpv6:
 		return true
 	}
 	return false
