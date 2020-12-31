@@ -1,3 +1,6 @@
+// +build linux
+// +build !riscv64,!arm64
+
 package config
 
 import (
