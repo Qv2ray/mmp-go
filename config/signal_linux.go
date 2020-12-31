@@ -9,7 +9,6 @@ import (
 	"log"
 	"os"
 	"path"
-	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
@@ -29,9 +28,6 @@ func init() {
 }
 
 func readPID() (pid int, err error) {
-	if runtime.GOOS != "linux" {
-		return -1, fmt.Errorf("daemon only support linux")
-	}
 	b, err := ioutil.ReadFile(path.Join("/run/", Name+".pid"))
 	if err != nil {
 		return
@@ -73,14 +69,9 @@ func daemonInit() (err error) {
 }
 
 func writePIDFile() (err error) {
-	fd, err := syscall.Creat(path.Join("/run/", Name+".pid"),
-		syscall.S_IRUSR|syscall.S_IWUSR|syscall.S_IRGRP|syscall.S_IROTH)
+	err = ioutil.WriteFile(path.Join("/run/", Name+".pid"), []byte(strconv.Itoa(os.Getpid())), 0644)
 	if err != nil {
-		return fmt.Errorf("syscall.Creat: %v", err)
-	}
-	_, err = syscall.Write(fd, []byte(strconv.Itoa(os.Getpid())))
-	if err != nil {
-		fmt.Errorf("syscall.Write: %v", err)
+		return fmt.Errorf("writePIDFile: %v", err)
 	}
 	return nil
 }
@@ -142,4 +133,24 @@ func reload() (err error) {
 	}
 	// send sighup signal to notify to reload
 	return syscall.Kill(pid, syscall.SIGHUP)
+}
+
+func redirectOut(path string) error {
+	file, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return err
+	}
+	if err = syscall.Dup2(int(file.Fd()), int(os.Stdin.Fd())); err != nil {
+		return err
+	}
+	if err = syscall.Dup2(int(file.Fd()), int(os.Stdout.Fd())); err != nil {
+		return err
+	}
+	if err = syscall.Dup2(int(file.Fd()), int(os.Stderr.Fd())); err != nil {
+		return err
+	}
+	if file.Fd() > 2 {
+		file.Close()
+	}
+	return err
 }

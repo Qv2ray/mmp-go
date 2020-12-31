@@ -5,7 +5,7 @@
 *.so
 *.dylib
 /shadomplexer-go
-/mmp-go
+/mmp-go*
 
 # Test binary, built with `go test -c`
 *.test

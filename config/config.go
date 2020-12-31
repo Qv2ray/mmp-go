@@ -10,8 +10,8 @@ import (
 	"log"
 	"os"
 	"path"
+	"runtime"
 	"sync"
-	"syscall"
 )
 
 type Config struct {
@@ -141,25 +141,6 @@ func build(config *Config) {
 		g.BuildMasterKeys()
 	}
 }
-func redirectOut(path string) error {
-	file, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		return err
-	}
-	if err = syscall.Dup2(int(file.Fd()), int(os.Stdin.Fd())); err != nil {
-		return err
-	}
-	if err = syscall.Dup2(int(file.Fd()), int(os.Stdout.Fd())); err != nil {
-		return err
-	}
-	if err = syscall.Dup2(int(file.Fd()), int(os.Stderr.Fd())); err != nil {
-		return err
-	}
-	if file.Fd() > 2 {
-		file.Close()
-	}
-	return err
-}
 
 func BuildConfig(confPath string) (conf *Config) {
 	conf = new(Config)
@@ -198,6 +179,9 @@ func GetConfig() *Config {
 			os.Exit(0)
 		}
 		if !DaemonMode {
+			if len(*sig) > 0 && runtime.GOOS != "linux" {
+				log.Fatalln("daemon only support linux")
+			}
 			switch *sig {
 			case "start":
 				if !path.IsAbs(*confPath) {
