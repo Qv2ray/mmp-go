@@ -10,6 +10,7 @@ import (
 	"golang.org/x/net/dns/dnsmessage"
 	"log"
 	"net"
+	"sync"
 	"time"
 )
 
@@ -27,9 +28,10 @@ func init() {
 }
 
 type UDP struct {
-	group *config.Group
-	c     *net.UDPConn
-	nm    *UDPConnMapping
+	gMutex sync.RWMutex
+	group  *config.Group
+	c      *net.UDPConn
+	nm     *UDPConnMapping
 }
 
 func New(g *config.Group) (d dispatcher.Dispatcher) {
@@ -37,6 +39,8 @@ func New(g *config.Group) (d dispatcher.Dispatcher) {
 }
 
 func (d *UDP) UpdateGroup(group *config.Group) {
+	d.gMutex.Lock()
+	defer d.gMutex.Unlock()
 	d.group = group
 }
 
@@ -133,7 +137,9 @@ func (d *UDP) GetOrBuildUCPConn(laddr net.Addr, data []byte) (rc *net.UDPConn, e
 		d.nm.Unlock()
 
 		// get user's context (preference)
+		d.gMutex.RLock() // avoid insert old servers to the new userContextPool
 		userContext := d.group.UserContextPool.GetOrInsert(laddr, d.group.Servers)
+		d.gMutex.RUnlock()
 
 		buf := pool.Get(len(data))
 		defer pool.Put(buf)

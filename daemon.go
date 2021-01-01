@@ -33,28 +33,33 @@ func ReloadConfig() {
 
 	// rebuild config
 	confPath := config.GetConfig().ConfPath
-	config.SetConfig(config.BuildConfig(confPath))
-	c := config.GetConfig()
+	newConf, err := config.BuildConfig(confPath)
+	if err != nil {
+		log.Printf("failed to reload: %v", err)
+		return
+	}
+	config.SetConfig(newConf)
+	c := newConf
 
 	// update dispatchers
-	m := make(map[int]struct{})
+	newConfPortSet := make(map[int]struct{})
 	for i := range c.Groups {
-		m[c.Groups[i].Port] = struct{}{}
+		newConfPortSet[c.Groups[i].Port] = struct{}{}
 
 		if t, ok := mPortDispatcher[c.Groups[i].Port]; ok {
-			// update existing dispatcher
+			// update the existing dispatcher
 			for j := range protocols {
 				t[j].UpdateGroup(&c.Groups[i])
 			}
 		} else {
-			// add new port dispatcher
+			// add a new port dispatcher
 			wg.Add(1)
 			go listen(&c.Groups[i])
 		}
 	}
 	// close all removed port dispatcher
 	for port := range mPortDispatcher {
-		if _, ok := m[port]; !ok {
+		if _, ok := newConfPortSet[port]; !ok {
 			t := mPortDispatcher[port]
 			delete(mPortDispatcher, port)
 			for j := range protocols {

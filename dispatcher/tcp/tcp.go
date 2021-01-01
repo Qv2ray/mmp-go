@@ -10,6 +10,7 @@ import (
 	"io"
 	"log"
 	"net"
+	"sync"
 	"time"
 )
 
@@ -24,8 +25,9 @@ func init() {
 }
 
 type TCP struct {
-	group *config.Group
-	l     net.Listener
+	gMutex sync.RWMutex
+	group  *config.Group
+	l      net.Listener
 }
 
 func New(g *config.Group) (d dispatcher.Dispatcher) {
@@ -33,6 +35,8 @@ func New(g *config.Group) (d dispatcher.Dispatcher) {
 }
 
 func (d *TCP) UpdateGroup(group *config.Group) {
+	d.gMutex.Lock()
+	defer d.gMutex.Unlock()
 	d.group = group
 }
 
@@ -89,7 +93,9 @@ func (d *TCP) handleConn(conn net.Conn) error {
 	}
 
 	// get user's context (preference)
+	d.gMutex.RLock() // avoid insert old servers to the new userContextPool
 	userContext = d.group.UserContextPool.GetOrInsert(conn.RemoteAddr(), d.group.Servers)
+	d.gMutex.RUnlock()
 
 	// auth every server
 	server, _ = d.Auth(buf, data, userContext)

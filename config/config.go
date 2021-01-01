@@ -142,21 +142,21 @@ func build(config *Config) {
 	}
 }
 
-func BuildConfig(confPath string) (conf *Config) {
+func BuildConfig(confPath string) (conf *Config, err error) {
 	conf = new(Config)
 	conf.ConfPath = confPath
 	b, err := ioutil.ReadFile(confPath)
 	if err != nil {
-		log.Fatalln(err)
+		return nil, err
 	}
 	if err = json.Unmarshal(b, conf); err != nil {
-		log.Fatalln(err)
+		return nil, err
 	}
 	if err = parseUpstreams(conf); err != nil {
-		log.Fatalln(err)
+		return nil, err
 	}
 	if err = check(conf); err != nil {
-		log.Fatalln(err)
+		return nil, err
 	}
 	build(conf)
 	return
@@ -168,8 +168,10 @@ func SetConfig(conf *Config) {
 
 func GetConfig() *Config {
 	once.Do(func() {
+		var err error
+
 		version := flag.Bool("v", false, "version")
-		sig := flag.String("s", "", "signal: start/stop/reload")
+		sig := flag.String("s", "", "daemon: start/stop/reload")
 		confPath := flag.String("conf", "example.json", "config file path")
 		logPath := flag.String("log", "", "the file path to write log")
 		flag.Parse()
@@ -207,12 +209,14 @@ func GetConfig() *Config {
 			}
 		}
 		if *logPath != "" {
-			err := redirectOut(*logPath)
-			if err != nil {
+			if err = redirectOut(*logPath); err != nil {
 				log.Fatalln(err)
 			}
 		}
-		config = BuildConfig(*confPath)
+
+		if config, err = BuildConfig(*confPath); err != nil {
+			log.Fatalln(err)
+		}
 	})
 	return config
 }

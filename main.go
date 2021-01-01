@@ -35,10 +35,10 @@ func listen(group *config.Group) {
 		mPortDispatcher[group.Port] = new([2]dispatcher.Dispatcher)
 	}
 	mMutex.Unlock()
-	err := _listen(group, protocols[:])
+	err := listenWithProtocols(group, protocols[:])
 	if err != nil {
-		// listening but error
 		mMutex.Lock()
+		// error but listening
 		if _, ok := mPortDispatcher[group.Port]; ok {
 			log.Fatalln(err)
 		}
@@ -47,7 +47,8 @@ func listen(group *config.Group) {
 	wg.Done()
 }
 
-func _listen(group *config.Group, protocols []string) error {
+// will block
+func listenWithProtocols(group *config.Group, protocols []string) error {
 	ch := make(chan error, len(protocols))
 	for i, protocol := range protocols {
 		d, _ := dispatcher.New(protocol, group)
