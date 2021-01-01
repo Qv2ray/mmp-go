@@ -7,6 +7,7 @@ import (
 	"github.com/VividCortex/godaemon"
 	"io/ioutil"
 	"log"
+	"log/syslog"
 	"os"
 	"path"
 	"strconv"
@@ -145,4 +146,22 @@ func writePIDFile() (err error) {
 		return fmt.Errorf("writePIDFile: %v", err)
 	}
 	return nil
+}
+
+func redirectOut(path string) error {
+	if path == Syslog {
+		wSyslog, err := syslog.New(syslog.LOG_INFO, Name)
+		if err != nil {
+			return err
+		}
+		log.SetOutput(wSyslog)
+		log.SetFlags(0)
+		return nil
+	}
+	file, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		return err
+	}
+	log.SetOutput(file)
+	return err
 }

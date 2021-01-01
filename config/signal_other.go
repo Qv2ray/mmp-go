@@ -23,5 +23,5 @@ func redirectOut(path string) error {
 		return err
 	}
 	log.SetOutput(file)
-	return err
+	return nil
 }

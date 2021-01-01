@@ -8,7 +8,6 @@ import (
 	"github.com/Qv2ray/mmp-go/common/lru"
 	"io/ioutil"
 	"log"
-	"log/syslog"
 	"os"
 	"runtime"
 	"sync"
@@ -43,6 +42,7 @@ const (
 	Name = "mmp-go"
 	// around 30kB per client if there are 300 servers to forward
 	DefaultClientCapacity = 100
+	Syslog                = "_syslog_"
 )
 
 func (g *Group) BuildMasterKeys() {
@@ -218,11 +218,7 @@ func GetConfig() *Config {
 				log.Fatalln(err)
 			}
 		} else if DaemonMode {
-			wSyslog, err := syslog.New(syslog.LOG_INFO, Name)
-			if err == nil {
-				log.SetOutput(wSyslog)
-				log.SetFlags(0)
-			}
+			_ = redirectOut(Syslog)
 		}
 
 		if config, err = BuildConfig(*confPath); err != nil {
