@@ -28,7 +28,7 @@ func init() {
 }
 
 func start() error {
-	if pid, err := readPID(); err != nil && !os.IsNotExist(err) {
+	if pid, err := readPIDFile(); err != nil && !os.IsNotExist(err) {
 		return err
 	} else if processExists(pid, Name) {
 		return fmt.Errorf("process %v/%v exists", Name, pid)
@@ -41,7 +41,7 @@ func start() error {
 }
 
 func stop() (err error) {
-	pid, err := readPID()
+	pid, err := readPIDFile()
 	if err != nil {
 		return
 	}
@@ -54,7 +54,7 @@ func stop() (err error) {
 }
 
 func reload() (err error) {
-	pid, err := readPID()
+	pid, err := readPIDFile()
 	if err != nil {
 		return
 	}
@@ -101,7 +101,7 @@ func kill(pid int) (err error) {
 	return syscall.Kill(pid, syscall.SIGKILL)
 }
 
-func readPID() (pid int, err error) {
+func readPIDFile() (pid int, err error) {
 	b, err := ioutil.ReadFile(path.Join("/run/", Name+".pid"))
 	if err != nil {
 		return

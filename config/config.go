@@ -184,6 +184,14 @@ func GetConfig() *Config {
 			if len(*sig) > 0 && runtime.GOOS != "linux" {
 				log.Fatalln("daemon only support linux")
 			}
+			// try open log file
+			if *logPath != "" {
+				file, err := os.OpenFile(*logPath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+				if err != nil {
+					log.Fatalln(err)
+				}
+				file.Close()
+			}
 			switch *sig {
 			case "start":
 				if !path.IsAbs(*confPath) {
