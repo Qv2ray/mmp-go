@@ -51,5 +51,5 @@ func ReloadConfig() {
 			}
 		}
 	}
-	log.Println("configure reloaded")
+	log.Println("configuration reloaded")
 }
