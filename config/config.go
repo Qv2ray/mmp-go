@@ -31,14 +31,15 @@ type Group struct {
 	UserContextPool *UserContextPool    `json:"-"`
 }
 
-var config *Config
-var once sync.Once
-var Version = "debug"
-var DaemonMode bool
-
 const (
 	// around 30kB per client if there are 300 servers to forward
 	DefaultClientCapacity = 100
+)
+
+var (
+	config  *Config
+	once    sync.Once
+	Version = "debug"
 )
 
 func (g *Group) BuildMasterKeys() {

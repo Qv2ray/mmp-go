@@ -1,5 +1,3 @@
-github.com/VividCortex/godaemon v0.0.0-20201215173923-eda977734e72 h1:kPET0ZTtmPg+0obS7L3KWPL9IqqgvMNhZ6Rkxj3iIpA=
-github.com/VividCortex/godaemon v0.0.0-20201215173923-eda977734e72/go.mod h1:Y8CJ3IwPIAkMhv/rRUWIlczaeqd9ty9yrl+nc2AbaL4=
 github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
 github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/studentmain/smaead v0.0.0-20201230222852-75aa2464875d h1:8cJZoaJdg0EFv+7ryIWRTnviorsmmHT5H06jx6621CI=

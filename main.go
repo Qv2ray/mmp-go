@@ -16,10 +16,8 @@ var protocols = [...]string{"tcp", "udp"}
 var wg sync.WaitGroup
 
 func main() {
-	if config.DaemonMode {
-		// handle reload
-		go signalHandler()
-	}
+	// handle reload
+	go signalHandler()
 
 	mMutex.Lock()
 	conf := config.GetConfig()
