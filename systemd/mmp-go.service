@@ -5,14 +5,14 @@ After=network.target nss-lookup.target
 Wants=network.target nss-lookup.target
 
 [Service]
-Type=simple
-User=nobody
-Restart=always
+Type=forking
+PIDFile=/run/mmp-go.pid
+PrivateDevices=yes
 LimitNOFILE=102400
-CapabilityBoundingSet=CAP_NET_ADMIN CAP_NET_BIND_SERVICE CAP_NET_RAW
-AmbientCapabilities=CAP_NET_ADMIN CAP_NET_BIND_SERVICE CAP_NET_RAW
-NoNewPrivileges=true
-ExecStart=/usr/bin/mmp-go -conf /etc/mmp-go/config.json
+
+ExecStart=/usr/bin/mmp-go -s start -conf /etc/mmp-go/config.json -log /etc/mmp-go/mmp-go.log
+ExecReload=/usr/bin/mmp-go -s reload
+KillMode=mixed
 
 [Install]
 WantedBy=multi-user.target

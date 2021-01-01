@@ -16,7 +16,7 @@ import (
 )
 
 func init() {
-	if os.Args[0] == Name+"d" {
+	if godaemon.Stage() == godaemon.StageDaemon {
 		// init daemon
 		err := daemonInit()
 		if err != nil {
@@ -33,6 +33,7 @@ func start() error {
 	} else if processExists(pid, Name) {
 		return fmt.Errorf("process %v/%v exists", Name, pid)
 	}
+	_ = writePIDFile()
 	if err := fork(); err != nil {
 		return fmt.Errorf("failed to fork: %v", err)
 	}
@@ -48,7 +49,8 @@ func stop() (err error) {
 	if err != nil {
 		return
 	}
-	return syscall.Unlink(path.Join("/run/", Name+".pid"))
+	_ = syscall.Unlink(path.Join("/run/", Name+".pid"))
+	return nil
 }
 
 func reload() (err error) {
@@ -66,17 +68,20 @@ func reload() (err error) {
 func daemonInit() (err error) {
 	DaemonMode = true
 
+	// parse and redirect output
+	GetConfig()
+
 	err = writePIDFile()
 	if err != nil {
 		return
 	}
-	return nil
+	return
 }
 
 // https://github.com/golang/go/issues/15538
 // We can not safely syscall.Fork in a multi-threaded program.
 func fork() (err error) {
-	_, _, err = godaemon.MakeDaemon(&godaemon.DaemonAttr{ProgramName: Name + "d", CaptureOutput: false})
+	_, _, err = godaemon.MakeDaemon(&godaemon.DaemonAttr{})
 	return
 }
 
