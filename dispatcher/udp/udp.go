@@ -6,9 +6,11 @@ import (
 	"github.com/Qv2ray/mmp-go/common/pool"
 	"github.com/Qv2ray/mmp-go/config"
 	"github.com/Qv2ray/mmp-go/dispatcher"
+	"github.com/pkg/errors"
 	"golang.org/x/net/dns/dnsmessage"
 	"log"
 	"net"
+	"sync"
 	"time"
 )
 
@@ -25,17 +27,24 @@ func init() {
 	dispatcher.Register("udp", New)
 }
 
-type Dispatcher struct {
-	group *config.Group
-	c     *net.UDPConn
-	nm    *UDPConnMapping
+type UDP struct {
+	gMutex sync.RWMutex
+	group  *config.Group
+	c      *net.UDPConn
+	nm     *UDPConnMapping
 }
 
 func New(g *config.Group) (d dispatcher.Dispatcher) {
-	return &Dispatcher{group: g, nm: NewUDPConnMapping()}
+	return &UDP{group: g, nm: NewUDPConnMapping()}
 }
 
-func (d *Dispatcher) Listen() (err error) {
+func (d *UDP) UpdateGroup(group *config.Group) {
+	d.gMutex.Lock()
+	defer d.gMutex.Unlock()
+	d.group = group
+}
+
+func (d *UDP) Listen() (err error) {
 	d.c, err = net.ListenUDP("udp", &net.UDPAddr{Port: d.group.Port})
 	if err != nil {
 		return
@@ -46,6 +55,12 @@ func (d *Dispatcher) Listen() (err error) {
 	for {
 		n, laddr, err := d.c.ReadFrom(buf[:])
 		if err != nil {
+			switch err := err.(type) {
+			case *net.OpError:
+				if errors.Is(err.Unwrap(), net.ErrClosed) {
+					return nil
+				}
+			}
 			log.Printf("[error] ReadFrom: %v", err)
 			continue
 		}
@@ -78,7 +93,7 @@ func addrLen(packet []byte) int {
 	return l
 }
 
-func (d *Dispatcher) handleConn(laddr net.Addr, data []byte, n int) (err error) {
+func (d *UDP) handleConn(laddr net.Addr, data []byte, n int) (err error) {
 	// get conn or dial and relay
 	rc, err := d.GetOrBuildUCPConn(laddr, data[:n])
 	if err != nil {
@@ -111,7 +126,7 @@ func selectTimeout(packet []byte) time.Duration {
 }
 
 // connTimeout is the timeout of connection to build if not exists
-func (d *Dispatcher) GetOrBuildUCPConn(laddr net.Addr, data []byte) (rc *net.UDPConn, err error) {
+func (d *UDP) GetOrBuildUCPConn(laddr net.Addr, data []byte) (rc *net.UDPConn, err error) {
 	socketIdent := laddr.String()
 	d.nm.Lock()
 	var conn *UDPConn
@@ -122,7 +137,9 @@ func (d *Dispatcher) GetOrBuildUCPConn(laddr net.Addr, data []byte) (rc *net.UDP
 		d.nm.Unlock()
 
 		// get user's context (preference)
+		d.gMutex.RLock() // avoid insert old servers to the new userContextPool
 		userContext := d.group.UserContextPool.GetOrInsert(laddr, d.group.Servers)
+		d.gMutex.RUnlock()
 
 		buf := pool.Get(len(data))
 		defer pool.Put(buf)
@@ -186,7 +203,7 @@ func relay(dst *net.UDPConn, laddr net.Addr, src *net.UDPConn, timeout time.Dura
 	}
 }
 
-func (d *Dispatcher) Auth(buf []byte, data []byte, userContext *config.UserContext) (hit *config.Server, content []byte) {
+func (d *UDP) Auth(buf []byte, data []byte, userContext *config.UserContext) (hit *config.Server, content []byte) {
 	if len(data) < BasicLen {
 		return nil, nil
 	}
@@ -195,7 +212,8 @@ func (d *Dispatcher) Auth(buf []byte, data []byte, userContext *config.UserConte
 	})
 }
 
-func (d *Dispatcher) Close() (err error) {
+func (d *UDP) Close() (err error) {
+	log.Printf("[udp] closed :%v\n", d.group.Port)
 	return d.c.Close()
 }
 

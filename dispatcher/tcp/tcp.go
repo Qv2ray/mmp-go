@@ -6,9 +6,11 @@ import (
 	"github.com/Qv2ray/mmp-go/common/pool"
 	"github.com/Qv2ray/mmp-go/config"
 	"github.com/Qv2ray/mmp-go/dispatcher"
+	"github.com/pkg/errors"
 	"io"
 	"log"
 	"net"
+	"sync"
 	"time"
 )
 
@@ -22,16 +24,23 @@ func init() {
 	dispatcher.Register("tcp", New)
 }
 
-type Dispatcher struct {
-	group *config.Group
-	l     net.Listener
+type TCP struct {
+	gMutex sync.RWMutex
+	group  *config.Group
+	l      net.Listener
 }
 
 func New(g *config.Group) (d dispatcher.Dispatcher) {
-	return &Dispatcher{group: g}
+	return &TCP{group: g}
 }
 
-func (d *Dispatcher) Listen() (err error) {
+func (d *TCP) UpdateGroup(group *config.Group) {
+	d.gMutex.Lock()
+	defer d.gMutex.Unlock()
+	d.group = group
+}
+
+func (d *TCP) Listen() (err error) {
 	d.l, err = net.Listen("tcp", fmt.Sprintf(":%d", d.group.Port))
 	if err != nil {
 		return
@@ -41,6 +50,12 @@ func (d *Dispatcher) Listen() (err error) {
 	for {
 		conn, err := d.l.Accept()
 		if err != nil {
+			switch err := err.(type) {
+			case *net.OpError:
+				if errors.Is(err.Unwrap(), net.ErrClosed) {
+					return nil
+				}
+			}
 			log.Printf("[error] ReadFrom: %v", err)
 			continue
 		}
@@ -53,11 +68,12 @@ func (d *Dispatcher) Listen() (err error) {
 	}
 }
 
-func (d *Dispatcher) Close() (err error) {
+func (d *TCP) Close() (err error) {
+	log.Printf("[tcp] closed :%v\n", d.group.Port)
 	return d.l.Close()
 }
 
-func (d *Dispatcher) handleConn(conn net.Conn) error {
+func (d *TCP) handleConn(conn net.Conn) error {
 	/*
 	   https://github.com/shadowsocks/shadowsocks-org/blob/master/whitepaper/whitepaper.md
 	*/
@@ -77,7 +93,9 @@ func (d *Dispatcher) handleConn(conn net.Conn) error {
 	}
 
 	// get user's context (preference)
+	d.gMutex.RLock() // avoid insert old servers to the new userContextPool
 	userContext = d.group.UserContextPool.GetOrInsert(conn.RemoteAddr(), d.group.Servers)
+	d.gMutex.RUnlock()
 
 	// auth every server
 	server, _ = d.Auth(buf, data, userContext)
@@ -130,7 +148,7 @@ func relay(lc, rc net.Conn) error {
 	return <-ch
 }
 
-func (d *Dispatcher) Auth(buf []byte, data []byte, userContext *config.UserContext) (hit *config.Server, content []byte) {
+func (d *TCP) Auth(buf []byte, data []byte, userContext *config.UserContext) (hit *config.Server, content []byte) {
 	if len(data) < BasicLen {
 		return nil, nil
 	}

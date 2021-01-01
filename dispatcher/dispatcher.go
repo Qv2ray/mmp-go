@@ -9,6 +9,7 @@ type Dispatcher interface {
 	Listen() (err error)
 	// buf is a buffer to store decrypted text
 	Auth(buf []byte, data []byte, userContext *config.UserContext) (hit *config.Server, content []byte)
+	UpdateGroup(group *config.Group)
 	Close() (err error)
 }
 

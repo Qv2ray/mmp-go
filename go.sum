@@ -1,3 +1,7 @@
+github.com/VividCortex/godaemon v0.0.0-20201215173923-eda977734e72 h1:kPET0ZTtmPg+0obS7L3KWPL9IqqgvMNhZ6Rkxj3iIpA=
+github.com/VividCortex/godaemon v0.0.0-20201215173923-eda977734e72/go.mod h1:Y8CJ3IwPIAkMhv/rRUWIlczaeqd9ty9yrl+nc2AbaL4=
+github.com/pkg/errors v0.9.1 h1:FEBLx1zS214owpjy7qsBeixbURkuhQAwrK5UwLGTwt4=
+github.com/pkg/errors v0.9.1/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
 github.com/studentmain/smaead v0.0.0-20201230222852-75aa2464875d h1:8cJZoaJdg0EFv+7ryIWRTnviorsmmHT5H06jx6621CI=
 github.com/studentmain/smaead v0.0.0-20201230222852-75aa2464875d/go.mod h1:1jZXK8G4HFsNzvB6tVf8eQ4lKPb9ccsXoZxDah0Yjb0=
 golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2/go.mod h1:djNgcEr1/C05ACkg1iLfiJU5Ep61QUkGW8qpdssI0+w=
