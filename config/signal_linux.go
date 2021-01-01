@@ -33,7 +33,6 @@ func start() error {
 	} else if processExists(pid, Name) {
 		return fmt.Errorf("process %v/%v exists", Name, pid)
 	}
-	_ = writePIDFile()
 	if err := fork(); err != nil {
 		return fmt.Errorf("failed to fork: %v", err)
 	}

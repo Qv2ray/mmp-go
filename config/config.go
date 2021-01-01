@@ -9,7 +9,6 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
-	"path"
 	"runtime"
 	"sync"
 )
@@ -194,9 +193,6 @@ func GetConfig() *Config {
 			}
 			switch *sig {
 			case "start":
-				if !path.IsAbs(*confPath) {
-					log.Fatalln("[error] daemon needs an absolute path of conf")
-				}
 				if err := start(); err != nil {
 					log.Fatalln("[error]", err)
 				}
