@@ -9,8 +9,9 @@ Type=forking
 PIDFile=/run/mmp-go.pid
 PrivateDevices=yes
 LimitNOFILE=102400
+SyslogLevel=info
 
-ExecStart=/usr/bin/mmp-go -s start -conf /etc/mmp-go/config.json -log /etc/mmp-go/mmp-go.log
+ExecStart=/usr/bin/mmp-go -s start -conf /etc/mmp-go/config.json
 ExecReload=/usr/bin/mmp-go -s reload
 ExecStop=/usr/bin/mmp-go -s stop
 KillMode=mixed

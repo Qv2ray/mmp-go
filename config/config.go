@@ -8,6 +8,7 @@ import (
 	"github.com/Qv2ray/mmp-go/common/lru"
 	"io/ioutil"
 	"log"
+	"log/syslog"
 	"os"
 	"runtime"
 	"sync"
@@ -215,6 +216,12 @@ func GetConfig() *Config {
 		if *logPath != "" {
 			if err = redirectOut(*logPath); err != nil {
 				log.Fatalln(err)
+			}
+		} else if DaemonMode {
+			wSyslog, err := syslog.New(syslog.LOG_INFO, Name)
+			if err == nil {
+				log.SetOutput(wSyslog)
+				log.SetFlags(0)
 			}
 		}
 
