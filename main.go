@@ -24,7 +24,6 @@ func main() {
 	}
 	mMutex.Unlock()
 	wg.Wait()
-	log.Println("quit")
 }
 
 func listen(group *config.Group) {
@@ -49,8 +48,7 @@ func listenWithProtocols(group *config.Group, protocols []string) error {
 	ch := make(chan error, len(protocols))
 	for i, protocol := range protocols {
 		d, _ := dispatcher.New(protocol, group)
-		t := mPortDispatcher[group.Port]
-		(*t)[i] = d
+		(*mPortDispatcher[group.Port])[i] = d
 		go func() {
 			var err error
 			err = d.Listen()

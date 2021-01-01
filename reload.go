@@ -11,7 +11,7 @@ var mMutex sync.Mutex
 var mPortDispatcher = make(map[int]*[len(protocols)]dispatcher.Dispatcher)
 
 func ReloadConfig() {
-	log.Println("configure reloading")
+	log.Println("Reloading configuration")
 	mMutex.Lock()
 	defer mMutex.Unlock()
 
@@ -51,5 +51,5 @@ func ReloadConfig() {
 			}
 		}
 	}
-	log.Println("configure reloaded")
+	log.Println("Reloaded configuration")
 }
