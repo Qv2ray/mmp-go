@@ -37,11 +37,8 @@ var Version = "debug"
 var DaemonMode bool
 
 const (
-	// program name
-	Name = "mmp-go"
 	// around 30kB per client if there are 300 servers to forward
 	DefaultClientCapacity = 100
-	Syslog                = "_syslog_"
 )
 
 func (g *Group) BuildMasterKeys() {
