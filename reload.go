@@ -19,7 +19,7 @@ func ReloadConfig() {
 	confPath := config.GetConfig().ConfPath
 	newConf, err := config.BuildConfig(confPath)
 	if err != nil {
-		log.Printf("failed to reload: %v", err)
+		log.Printf("failed to reload configuration: %v", err)
 		return
 	}
 	config.SetConfig(newConf)
