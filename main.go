@@ -6,10 +6,7 @@ import (
 	_ "github.com/Qv2ray/mmp-go/dispatcher/tcp"
 	_ "github.com/Qv2ray/mmp-go/dispatcher/udp"
 	"log"
-	"os"
-	"os/signal"
 	"sync"
-	"syscall"
 )
 
 var protocols = [...]string{"tcp", "udp"}
@@ -61,18 +58,4 @@ func listenWithProtocols(group *config.Group, protocols []string) error {
 		}()
 	}
 	return <-ch
-}
-
-func signalHandler() {
-	ch := make(chan os.Signal, 1)
-	signal.Notify(ch, syscall.SIGUSR1, syscall.SIGTERM)
-	for sig := range ch {
-		switch sig {
-		case syscall.SIGTERM:
-			log.Println("stopped")
-			os.Exit(0)
-		case syscall.SIGUSR1:
-			ReloadConfig()
-		}
-	}
 }
