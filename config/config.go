@@ -13,6 +13,7 @@ import (
 )
 
 type Config struct {
+	ConfPath       string  `json:"-"`
 	Groups         []Group `json:"groups"`
 	ClientCapacity int     `json:"clientCapacity"`
 }
@@ -30,13 +31,15 @@ type Group struct {
 	UserContextPool *UserContextPool    `json:"-"`
 }
 
-var config *Config
-var once sync.Once
-var Version = "debug"
-
 const (
 	// around 30kB per client if there are 300 servers to forward
 	DefaultClientCapacity = 100
+)
+
+var (
+	config  *Config
+	once    sync.Once
+	Version = "debug"
 )
 
 func (g *Group) BuildMasterKeys() {
@@ -135,10 +138,37 @@ func build(config *Config) {
 		g.BuildMasterKeys()
 	}
 }
+
+func BuildConfig(confPath string) (conf *Config, err error) {
+	conf = new(Config)
+	conf.ConfPath = confPath
+	b, err := ioutil.ReadFile(confPath)
+	if err != nil {
+		return nil, err
+	}
+	if err = json.Unmarshal(b, conf); err != nil {
+		return nil, err
+	}
+	if err = parseUpstreams(conf); err != nil {
+		return nil, err
+	}
+	if err = check(conf); err != nil {
+		return nil, err
+	}
+	build(conf)
+	return
+}
+
+func SetConfig(conf *Config) {
+	config = conf
+}
+
 func GetConfig() *Config {
 	once.Do(func() {
+		var err error
+
 		version := flag.Bool("v", false, "version")
-		filename := flag.String("conf", "example.json", "config file path")
+		confPath := flag.String("conf", "example.json", "config file path")
 		flag.Parse()
 
 		if *version {
@@ -146,21 +176,9 @@ func GetConfig() *Config {
 			os.Exit(0)
 		}
 
-		config = new(Config)
-		b, err := ioutil.ReadFile(*filename)
-		if err != nil {
+		if config, err = BuildConfig(*confPath); err != nil {
 			log.Fatalln(err)
 		}
-		if err = json.Unmarshal(b, config); err != nil {
-			log.Fatalln(err)
-		}
-		if err = parseUpstreams(config); err != nil {
-			log.Fatalln(err)
-		}
-		if err = check(config); err != nil {
-			log.Fatalln(err)
-		}
-		build(config)
 	})
 	return config
 }
