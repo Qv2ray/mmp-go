@@ -4,7 +4,7 @@ go 1.15
 
 require (
 	github.com/pkg/errors v0.9.1
-	github.com/studentmain/smaead v0.0.0-20201230222852-75aa2464875d
+	github.com/qv2ray/smaead v0.0.0-20210102113335-316eca415c84
 	golang.org/x/crypto v0.0.0-20201221181555-eec23a3978ad
 	golang.org/x/net v0.0.0-20190404232315-eb5bcb51f2a3
 )

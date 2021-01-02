@@ -6,7 +6,7 @@ import (
 	"crypto/md5"
 	"crypto/sha1"
 	"github.com/Qv2ray/mmp-go/common/pool"
-	"github.com/studentmain/smaead"
+	"github.com/qv2ray/smaead"
 	"golang.org/x/crypto/chacha20poly1305"
 	"golang.org/x/crypto/hkdf"
 	"io"
