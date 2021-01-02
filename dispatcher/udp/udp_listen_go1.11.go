@@ -1,4 +1,4 @@
-// +build go1.11
+// +build go1.11,!go1.16
 
 package udp
 
