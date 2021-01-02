@@ -3,6 +3,7 @@
 package tcp
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"net"
