@@ -1,12 +1,11 @@
-// +build go1.16
-
 package udp
 
 import (
-	"errors"
 	"github.com/Qv2ray/mmp-go/common/pool"
+	"github.com/Qv2ray/mmp-go/dispatcher/infra"
 	"log"
 	"net"
+	"strings"
 )
 
 func (d *UDP) Listen() (err error) {
@@ -22,7 +21,9 @@ func (d *UDP) Listen() (err error) {
 		if err != nil {
 			switch err := err.(type) {
 			case *net.OpError:
-				if errors.Is(err.Unwrap(), net.ErrClosed) {
+				// FIXME:
+				// use `if errors.Is(err.Unwrap(), net.ErrClosed) {` with go1.16 instead.
+				if strings.HasSuffix(err.Error(), infra.ErrNetClosing.Error()) {
 					return nil
 				}
 			}

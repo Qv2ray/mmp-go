@@ -1,11 +1,11 @@
-// +build go1.11,!go1.16
-
 package tcp
 
 import (
 	"fmt"
+	"github.com/Qv2ray/mmp-go/dispatcher/infra"
 	"log"
 	"net"
+	"strings"
 )
 
 func (d *TCP) Listen() (err error) {
@@ -18,6 +18,14 @@ func (d *TCP) Listen() (err error) {
 	for {
 		conn, err := d.l.Accept()
 		if err != nil {
+			switch err := err.(type) {
+			case *net.OpError:
+				// FIXME:
+				// use `if errors.Is(err.Unwrap(), net.ErrClosed) {` with go1.16 instead.
+				if strings.HasSuffix(err.Error(), infra.ErrNetClosing.Error()) {
+					return nil
+				}
+			}
 			log.Printf("[error] ReadFrom: %v", err)
 			continue
 		}

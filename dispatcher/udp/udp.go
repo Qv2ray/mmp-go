@@ -6,6 +6,7 @@ import (
 	"github.com/Qv2ray/mmp-go/common/pool"
 	"github.com/Qv2ray/mmp-go/config"
 	"github.com/Qv2ray/mmp-go/dispatcher"
+	"github.com/Qv2ray/mmp-go/dispatcher/infra"
 	"golang.org/x/net/dns/dnsmessage"
 	"log"
 	"net"
@@ -43,23 +44,6 @@ func (d *UDP) UpdateGroup(group *config.Group) {
 	d.group = group
 }
 
-func addrLen(packet []byte) int {
-	if len(packet) < 5 {
-		return 0 // invalid addr field
-	}
-	l := 1 + 2 // type + port
-	// host
-	switch packet[0] {
-	case 0x01:
-		l += 4
-	case 0x03:
-		l += 1 + int(packet[1])
-	case 0x04:
-		l += 16
-	}
-	return l
-}
-
 func (d *UDP) handleConn(laddr net.Addr, data []byte, n int) (err error) {
 	// get conn or dial and relay
 	rc, err := d.GetOrBuildUCPConn(laddr, data[:n])
@@ -79,7 +63,7 @@ func (d *UDP) handleConn(laddr net.Addr, data []byte, n int) (err error) {
 
 // select an appropriate timeout
 func selectTimeout(packet []byte) time.Duration {
-	al := addrLen(packet)
+	al := infra.AddrLen(packet)
 	if len(packet) < al {
 		// err: packet with inadequate length
 		return DefaultNatTimeout
