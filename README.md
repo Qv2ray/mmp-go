@@ -35,11 +35,15 @@ Refer to `example.json`
 - aes-256-gcm
 - aes-128-gcm
 
-### Related Projects
+### Related projects
 
 - [Qv2ray/mmp-rs](https://github.com/Qv2ray/mmp-rs) A rust-lang implementation of Mega Multiplexer.
 - [mzz2017/outline-watch-dog](https://github.com/mzz2017/outline-watch-dog) Watch and keep read privilege for `/opt/outline` recursively to avoid permission denied.
 
-### Special Thanks:
+### Spark of thought from:
+
+- Ducksoft
+
+### Special thanks:
 
 - Qv2ray Developer Community
