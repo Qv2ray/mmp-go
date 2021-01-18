@@ -42,7 +42,7 @@ Refer to `example.json`
 
 ### Spark of thought from:
 
-- Ducksoft
+- DuckSoft
 
 ### Special thanks:
 
