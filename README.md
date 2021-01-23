@@ -42,8 +42,9 @@ Refer to `example.json`
 
 ### Spark of thought from:
 
-- DuckSoft
+- [DuckSoft](https://github.com/DuckSoft)
 
 ### Special thanks:
 
+- [studentmain](https://github.com/studentmain)
 - Qv2ray Developer Community
