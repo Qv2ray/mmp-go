@@ -1,7 +1,7 @@
 package udp
 
 import (
-	"github.com/Qv2ray/mmp-go/common/trie"
+	"github.com/Qv2ray/mmp-go/infra/trie"
 	"net"
 	"strconv"
 	"strings"
