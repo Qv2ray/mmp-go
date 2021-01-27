@@ -1,5 +1,6 @@
 package linklist
 
+// linklist with head node and tail node
 type Node struct {
 	prior *Node
 	next  *Node
@@ -31,11 +32,19 @@ func NewLinklist() *Linklist {
 }
 
 func (l *Linklist) Front() *Node {
-	return l.head.Next()
+	node := l.head.next
+	if node == l.tail {
+		return nil
+	}
+	return node
 }
 
 func (l *Linklist) Back() *Node {
-	return l.tail.Prior()
+	node := l.tail.prior
+	if node == l.head {
+		return nil
+	}
+	return node
 }
 
 func (l *Linklist) Head() *Node {
@@ -84,7 +93,7 @@ func (l *Linklist) Promote(p *Node) {
 }
 
 func (l *Linklist) Demote(p *Node) {
-	if p == l.Back(){
+	if p == l.Back() {
 		return
 	}
 	p.prior.next = p.next
