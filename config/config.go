@@ -5,17 +5,17 @@ import (
 	"flag"
 	"fmt"
 	"github.com/Qv2ray/mmp-go/cipher"
-	"github.com/Qv2ray/mmp-go/common/lru"
+	"github.com/Qv2ray/mmp-go/infra/lru"
 	"io/ioutil"
 	"log"
 	"os"
 	"sync"
+	"time"
 )
 
 type Config struct {
-	ConfPath       string  `json:"-"`
-	Groups         []Group `json:"groups"`
-	ClientCapacity int     `json:"clientCapacity"`
+	ConfPath string  `json:"-"`
+	Groups   []Group `json:"groups"`
 }
 type Server struct {
 	Target    string `json:"target"`
@@ -32,8 +32,7 @@ type Group struct {
 }
 
 const (
-	// around 30kB per client if there are 300 servers to forward
-	DefaultClientCapacity = 100
+	LRUTimeout = 30 * time.Minute
 )
 
 var (
@@ -49,12 +48,8 @@ func (g *Group) BuildMasterKeys() {
 		s.MasterKey = cipher.EVPBytesToKey(s.Password, cipher.CiphersConf[s.Method].KeyLen)
 	}
 }
-func (g *Group) BuildUserContextPool(globalLRUSize int) {
-	lruSize := g.LRUSize
-	if lruSize == 0 {
-		lruSize = globalLRUSize
-	}
-	g.UserContextPool = (*UserContextPool)(lru.New(lruSize))
+func (g *Group) BuildUserContextPool(timeout time.Duration) {
+	g.UserContextPool = (*UserContextPool)(lru.New(lru.FixedTimeout, int64(timeout)))
 }
 
 func (config *Config) CheckMethodSupported() error {
@@ -128,13 +123,9 @@ func check(config *Config) (err error) {
 	return
 }
 func build(config *Config) {
-	globalClientCapacity := config.ClientCapacity
-	if globalClientCapacity == 0 {
-		globalClientCapacity = DefaultClientCapacity
-	}
 	for i := range config.Groups {
 		g := &config.Groups[i]
-		g.BuildUserContextPool(globalClientCapacity)
+		g.BuildUserContextPool(LRUTimeout)
 		g.BuildMasterKeys()
 	}
 }

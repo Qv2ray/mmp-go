@@ -1,9 +1,7 @@
 {
-  "clientCapacity": 30,
   "groups": [
     {
       "port": 1090,
-      "clientCapacity": 500,
       "upstreams": [
         {
           "type": "outline",

@@ -1,8 +1,8 @@
 package config
 
 import (
-	"github.com/Qv2ray/mmp-go/common/lru"
-	"github.com/Qv2ray/mmp-go/common/lrulist"
+	"github.com/Qv2ray/mmp-go/infra/lru"
+	"github.com/Qv2ray/mmp-go/infra/lrulist"
 	"math/rand"
 	"net"
 	"time"
@@ -53,11 +53,11 @@ func (pool *UserContextPool) Infra() *lru.LRU {
 
 func (pool *UserContextPool) GetOrInsert(addr net.Addr, servers []Server) *UserContext {
 	userIdent, _, _ := net.SplitHostPort(addr.String())
-	node, removed := pool.Infra().GetOrInsert(userIdent, func() (val interface{}) {
+	value, removed := pool.Infra().GetOrInsert(userIdent, func() (val interface{}) {
 		return NewUserContext(servers)
 	})
-	if removed != nil {
-		removed.Val.(*UserContext).Close()
+	for _, ev := range removed {
+		ev.Value.(*UserContext).Close()
 	}
-	return node.Val.(*UserContext)
+	return value.(*UserContext)
 }
