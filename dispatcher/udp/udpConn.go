@@ -3,10 +3,12 @@ package udp
 import (
 	"net"
 	"sync"
+	"time"
 )
 
 type UDPConn struct {
 	Establishing chan struct{}
+	timeout      time.Duration
 	*net.UDPConn
 }
 
@@ -42,8 +44,10 @@ func (m *UDPConnMapping) Get(key string) (conn *UDPConn, ok bool) {
 }
 
 // pass val=nil for stating it is establishing
-func (m *UDPConnMapping) Insert(key string, val *net.UDPConn) {
-	m.nm[key] = NewUDPConn(val)
+func (m *UDPConnMapping) Insert(key string, val *net.UDPConn) *UDPConn {
+	c := NewUDPConn(val)
+	m.nm[key] = c
+	return c
 }
 
 func (m *UDPConnMapping) Remove(key string) {

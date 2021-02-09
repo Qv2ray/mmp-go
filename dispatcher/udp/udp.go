@@ -146,12 +146,13 @@ func (d *UDP) GetOrBuildUCPConn(laddr net.Addr, data []byte) (rc *net.UDPConn, e
 		rc = rconn.(*net.UDPConn)
 		d.nm.Lock()
 		d.nm.Remove(socketIdent) // close channel to inform that establishment ends
-		d.nm.Insert(socketIdent, rc)
+		conn = d.nm.Insert(socketIdent, rc)
+		conn.timeout = selectTimeout(content)
 		d.nm.Unlock()
 		// relay
 		log.Printf("[udp] %s <-> %s <-> %s", laddr.String(), d.c.LocalAddr(), rc.RemoteAddr())
 		go func() {
-			_ = relay(d.c, laddr, rc, selectTimeout(content))
+			_ = relay(d.c, laddr, rc, conn.timeout)
 			d.nm.Lock()
 			d.nm.Remove(socketIdent)
 			d.nm.Unlock()
@@ -168,6 +169,8 @@ func (d *UDP) GetOrBuildUCPConn(laddr net.Addr, data []byte) (rc *net.UDPConn, e
 			rc = conn.UDPConn
 		}
 	}
+	// countdown
+	_ = conn.UDPConn.SetReadDeadline(time.Now().Add(conn.timeout))
 	return rc, nil
 }
 
