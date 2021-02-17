@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"github.com/Qv2ray/mmp-go/cipher"
 	"github.com/Qv2ray/mmp-go/infra/lru"
-	"io/ioutil"
 	"log"
 	"os"
 	"sync"
@@ -133,7 +132,7 @@ func build(config *Config) {
 func BuildConfig(confPath string) (conf *Config, err error) {
 	conf = new(Config)
 	conf.ConfPath = confPath
-	b, err := ioutil.ReadFile(confPath)
+	b, err := os.ReadFile(confPath)
 	if err != nil {
 		return nil, err
 	}

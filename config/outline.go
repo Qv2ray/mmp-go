@@ -9,7 +9,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"golang.org/x/crypto/ssh"
-	"io/ioutil"
+	"io"
 	"net"
 	"net/http"
 	"strconv"
@@ -86,7 +86,7 @@ func (outline Outline) getConfigFromLink() ([]byte, error) {
 		return nil, fmt.Errorf("getConfigFromLink failed: %v", err)
 	}
 	defer resp.Body.Close()
-	return ioutil.ReadAll(resp.Body)
+	return io.ReadAll(resp.Body)
 }
 
 func (outline Outline) getConfigFromApi() ([]byte, error) {
@@ -116,7 +116,7 @@ func (outline Outline) getConfigFromApi() ([]byte, error) {
 		return nil, fmt.Errorf("getConfigFromLink failed: %v", err)
 	}
 	defer resp.Body.Close()
-	return ioutil.ReadAll(resp.Body)
+	return io.ReadAll(resp.Body)
 }
 
 func (outline Outline) getConfigFromSSH() ([]byte, error) {

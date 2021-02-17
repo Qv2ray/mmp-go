@@ -1,16 +1,16 @@
 package udp
 
 import (
+	"errors"
 	"fmt"
 	"github.com/Qv2ray/mmp-go/cipher"
-	"github.com/Qv2ray/mmp-go/infra/pool"
 	"github.com/Qv2ray/mmp-go/config"
 	"github.com/Qv2ray/mmp-go/dispatcher"
 	"github.com/Qv2ray/mmp-go/dispatcher/infra"
+	"github.com/Qv2ray/mmp-go/infra/pool"
 	"golang.org/x/net/dns/dnsmessage"
 	"log"
 	"net"
-	"strings"
 	"sync"
 	"time"
 )
@@ -52,9 +52,7 @@ func (d *UDP) Listen() (err error) {
 		if err != nil {
 			switch err := err.(type) {
 			case *net.OpError:
-				// FIXME:
-				// use `if errors.Is(err.Unwrap(), net.ErrClosed) {` with go1.16 instead.
-				if strings.HasSuffix(err.Error(), infra.ErrNetClosing.Error()) {
+				if errors.Is(err.Unwrap(), net.ErrClosed) {
 					return nil
 				}
 			}
