@@ -1,10 +1,6 @@
 package config
 
 import (
-	"bytes"
-	"crypto/sha256"
-	"encoding/binary"
-	"encoding/hex"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -12,7 +8,6 @@ import (
 	"github.com/Qv2ray/mmp-go/infra/lru"
 	"log"
 	"os"
-	"sort"
 	"sync"
 	"time"
 )
@@ -22,11 +17,11 @@ type Config struct {
 	Groups   []Group `json:"groups"`
 }
 type Server struct {
-	Target       string `json:"target"`
-	Method       string `json:"method"`
-	Password     string `json:"password"`
-	MasterKey    []byte `json:"-"`
-	UpstreamHash string `json:"-"`
+	Target       string        `json:"target"`
+	Method       string        `json:"method"`
+	Password     string        `json:"password"`
+	MasterKey    []byte        `json:"-"`
+	UpstreamConf *UpstreamConf `json:"-"`
 }
 type Group struct {
 	Port            int              `json:"port"`
@@ -40,28 +35,18 @@ type UpstreamConf struct {
 	PullingError error
 }
 
-func (uc *UpstreamConf) Hash() string {
-	var kv [][2]string
+func (uc *UpstreamConf) Equal(that *UpstreamConf) bool {
+	if len(uc.ConfItems) != len(that.ConfItems) {
+		return false
+	}
 	for k, v := range uc.ConfItems {
-		if k == "" || v == "" {
-			continue
+		if vv, ok := that.ConfItems[k]; !ok || vv != v {
+			return false
 		}
-		kv = append(kv, [2]string{k, v})
 	}
-	if len(kv) == 0 {
-		return ""
-	}
-	sort.Slice(kv, func(i, j int) bool {
-		return kv[i][0] < kv[i][1]
-	})
-	buf := new(bytes.Buffer)
-	if err := binary.Write(buf, binary.LittleEndian, &kv); err != nil {
-		return ""
-	}
-	h := sha256.New()
-	h.Write(buf.Bytes())
-	return hex.EncodeToString(h.Sum(nil))
+	return true
 }
+
 
 const (
 	LRUTimeout = 30 * time.Minute
@@ -141,9 +126,8 @@ func parseUpstreams(config *Config) (err error) {
 				log.Printf("[warning] Failed to retrieve configure from groups[%d].upstreams[%d]: %v\n", i, j, err)
 				continue
 			}
-			upstreamHash := upstreamConf.Hash()
 			for i := range servers {
-				servers[i].UpstreamHash = upstreamHash
+				servers[i].UpstreamConf = &upstreamConf
 			}
 			g.Servers = append(g.Servers, servers...)
 		}

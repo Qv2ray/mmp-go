@@ -50,15 +50,10 @@ func ReloadConfig() {
 				// cannot find the corresponding old group
 				continue
 			}
-			newUpstreamHash := newUpstream.Hash()
-			if newUpstreamHash == "" {
-				// unknown error
-				continue
-			}
-			// check if hashes can match
+			// check if upstreamConf can match
 			for k := range oldGroup.Servers {
 				oldServer := oldGroup.Servers[k]
-				if oldServer.UpstreamHash == newUpstreamHash {
+				if newUpstream.Equal(oldServer.UpstreamConf) {
 					// remain the server
 					newGroup.Servers = append(newGroup.Servers, oldServer)
 				}
