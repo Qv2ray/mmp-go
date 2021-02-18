@@ -1,6 +1,10 @@
 package config
 
 import (
+	"bytes"
+	"crypto/sha256"
+	"encoding/binary"
+	"encoding/hex"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -8,6 +12,7 @@ import (
 	"github.com/Qv2ray/mmp-go/infra/lru"
 	"log"
 	"os"
+	"sort"
 	"sync"
 	"time"
 )
@@ -17,17 +22,45 @@ type Config struct {
 	Groups   []Group `json:"groups"`
 }
 type Server struct {
-	Target    string `json:"target"`
-	Method    string `json:"method"`
-	Password  string `json:"password"`
-	MasterKey []byte `json:"-"`
+	Target       string `json:"target"`
+	Method       string `json:"method"`
+	Password     string `json:"password"`
+	MasterKey    []byte `json:"-"`
+	UpstreamHash string `json:"-"`
 }
 type Group struct {
-	Port            int                 `json:"port"`
-	Servers         []Server            `json:"servers"`
-	Upstreams       []map[string]string `json:"upstreams"`
-	LRUSize         int                 `json:"lruSize"`
-	UserContextPool *UserContextPool    `json:"-"`
+	Port            int              `json:"port"`
+	Servers         []Server         `json:"servers"`
+	Upstreams       []UpstreamConf   `json:"upstreams"`
+	LRUSize         int              `json:"lruSize"`
+	UserContextPool *UserContextPool `json:"-"`
+}
+type UpstreamConf struct {
+	ConfItems    map[string]string
+	PullingError error
+}
+
+func (uc *UpstreamConf) Hash() string {
+	var kv [][2]string
+	for k, v := range uc.ConfItems {
+		if k == "" || v == "" {
+			continue
+		}
+		kv = append(kv, [2]string{k, v})
+	}
+	if len(kv) == 0 {
+		return ""
+	}
+	sort.Slice(kv, func(i, j int) bool {
+		return kv[i][0] < kv[i][1]
+	})
+	buf := new(bytes.Buffer)
+	if err := binary.Write(buf, binary.LittleEndian, &kv); err != nil {
+		return ""
+	}
+	h := sha256.New()
+	h.Write(buf.Bytes())
+	return hex.EncodeToString(h.Sum(nil))
 }
 
 const (
@@ -85,18 +118,18 @@ func parseUpstreams(config *Config) (err error) {
 	logged := false
 	for i := range config.Groups {
 		g := &config.Groups[i]
-		for j, u := range g.Upstreams {
+		for j, upstreamConf := range g.Upstreams {
 			var upstream Upstream
-			switch u["type"] {
+			switch upstreamConf.ConfItems["type"] {
 			case "outline":
 				var outline Outline
-				err = Map2upstream(u, &outline)
+				err = Map2upstream(upstreamConf.ConfItems, &outline)
 				if err != nil {
 					return
 				}
 				upstream = outline
 			default:
-				return fmt.Errorf("unknown upstream type: %v", u["type"])
+				return fmt.Errorf("unknown upstream type: %v", upstreamConf.ConfItems["type"])
 			}
 			if !logged {
 				log.Println("pulling configures from upstreams...")
@@ -104,8 +137,13 @@ func parseUpstreams(config *Config) (err error) {
 			}
 			servers, err := upstream.GetServers()
 			if err != nil {
+				upstreamConf.PullingError = err
 				log.Printf("[warning] Failed to retrieve configure from groups[%d].upstreams[%d]: %v\n", i, j, err)
 				continue
+			}
+			upstreamHash := upstreamConf.Hash()
+			for i := range servers {
+				servers[i].UpstreamHash = upstreamHash
 			}
 			g.Servers = append(g.Servers, servers...)
 		}
