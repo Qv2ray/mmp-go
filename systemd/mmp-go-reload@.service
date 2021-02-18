@@ -1,0 +1,7 @@
+[Unit]
+Description=Reload mmp-go service (%i)
+After=mmp-go.service
+
+[Service]
+Type=oneshot
+ExecStart=/bin/systemctl reload mmp-go@%i
