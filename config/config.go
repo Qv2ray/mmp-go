@@ -29,7 +29,6 @@ type Group struct {
 	Port            int              `json:"port"`
 	Servers         []Server         `json:"servers"`
 	Upstreams       []UpstreamConf   `json:"upstreams"`
-	LRUSize         int              `json:"lruSize"`
 	UserContextPool *UserContextPool `json:"-"`
 }
 type UpstreamConf map[string]string
@@ -136,8 +135,7 @@ func parseUpstreams(config *Config) (err error) {
 			}
 			servers, err := upstream.GetServers()
 			if err != nil {
-				var netError net.Error
-				if errors.As(err, &netError) {
+				if netError := new(net.Error); errors.As(err, netError) {
 					upstreamConf[PullingErrorKey] = PullingErrorNetError
 				}
 				log.Printf("[warning] Failed to retrieve configure from groups[%d].upstreams[%d]: %v: %v\n", i, j, err, upstreamConf[PullingErrorKey])
