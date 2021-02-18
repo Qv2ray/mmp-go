@@ -29,6 +29,9 @@ func ReloadConfig() {
 		newGroup := newConf.Groups[i]
 		for j := range newGroup.Upstreams {
 			newUpstream := newGroup.Upstreams[j]
+			if newUpstream.PullingError == nil {
+				continue
+			}
 			if _, ok := newUpstream.PullingError.(net.Error); !ok {
 				continue
 			}
