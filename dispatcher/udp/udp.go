@@ -50,11 +50,8 @@ func (d *UDP) Listen() (err error) {
 	for {
 		n, laddr, err := d.c.ReadFrom(buf[:])
 		if err != nil {
-			switch err := err.(type) {
-			case *net.OpError:
-				if errors.Is(err.Unwrap(), net.ErrClosed) {
-					return nil
-				}
+			if errors.Is(err, net.ErrClosed) {
+				return nil
 			}
 			log.Printf("[error] ReadFrom: %v", err)
 			continue
