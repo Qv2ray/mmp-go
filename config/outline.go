@@ -66,7 +66,7 @@ func (outline Outline) getConfig() ([]byte, error) {
 		// concatenate errors
 		err = errs[0]
 		for i := 1; i < len(errs); i++ {
-			err = fmt.Errorf("%v; %v", err, errs[i])
+			err = fmt.Errorf("%w; %s", err, errs[i].Error())
 		}
 		return nil, err
 	}
@@ -83,7 +83,7 @@ func (outline Outline) getConfigFromLink() ([]byte, error) {
 	}
 	resp, err := client.Get(outline.Link)
 	if err != nil {
-		return nil, fmt.Errorf("getConfigFromLink failed: %v", err)
+		return nil, fmt.Errorf("getConfigFromLink failed: %w", err)
 	}
 	defer resp.Body.Close()
 	return io.ReadAll(resp.Body)
@@ -113,7 +113,7 @@ func (outline Outline) getConfigFromApi() ([]byte, error) {
 	outline.ApiUrl = strings.TrimSuffix(outline.ApiUrl, "/")
 	resp, err := client.Get(fmt.Sprintf("%v/access-keys", outline.ApiUrl))
 	if err != nil {
-		return nil, fmt.Errorf("getConfigFromLink failed: %v", err)
+		return nil, fmt.Errorf("getConfigFromApi failed: %w", err)
 	}
 	defer resp.Body.Close()
 	return io.ReadAll(resp.Body)
@@ -130,7 +130,7 @@ func (outline Outline) getConfigFromSSH() ([]byte, error) {
 	if outline.SSHPrivateKey != "" {
 		signer, err := ssh.ParsePrivateKey([]byte(outline.SSHPrivateKey))
 		if err != nil {
-			return nil, fmt.Errorf("parse privateKey error: %v", err)
+			return nil, fmt.Errorf("parse privateKey error: %w", err)
 		}
 		authMethods = append(authMethods, ssh.PublicKeys(signer))
 	}
@@ -151,18 +151,18 @@ func (outline Outline) getConfigFromSSH() ([]byte, error) {
 	}
 	client, err := ssh.Dial("tcp", net.JoinHostPort(outline.Server, port), conf)
 	if err != nil {
-		return nil, fmt.Errorf("failed to dial: %v", err)
+		return nil, fmt.Errorf("failed to dial: %w", err)
 	}
 	defer client.Close()
 
 	session, err := client.NewSession()
 	if err != nil {
-		return nil, fmt.Errorf("failed to create session: %v", err)
+		return nil, fmt.Errorf("failed to create session: %w", err)
 	}
 	defer session.Close()
 	out, err := session.CombinedOutput("cat /opt/outline/persisted-state/shadowbox_config.json")
 	if err != nil {
-		err = fmt.Errorf("%v: %v", string(bytes.TrimSpace(out)), err)
+		err = fmt.Errorf("%v: %w", string(bytes.TrimSpace(out)), err)
 		return nil, err
 	}
 	return out, nil
@@ -171,7 +171,7 @@ func (outline Outline) getConfigFromSSH() ([]byte, error) {
 func (outline Outline) GetServers() (servers []Server, err error) {
 	defer func() {
 		if err != nil {
-			err = fmt.Errorf("outline.GetGroups: %v", err)
+			err = fmt.Errorf("outline.GetGroups: %w", err)
 		}
 	}()
 	b, err := outline.getConfig()

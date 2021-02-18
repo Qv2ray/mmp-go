@@ -2,11 +2,13 @@ package config
 
 import (
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"github.com/Qv2ray/mmp-go/cipher"
 	"github.com/Qv2ray/mmp-go/infra/lru"
 	"log"
+	"net"
 	"os"
 	"sync"
 	"time"
@@ -30,23 +32,35 @@ type Group struct {
 	LRUSize         int              `json:"lruSize"`
 	UserContextPool *UserContextPool `json:"-"`
 }
-type UpstreamConf struct {
-	ConfItems    map[string]string
-	PullingError error
+type UpstreamConf map[string]string
+
+const (
+	PullingErrorKey      = "__pulling_error__"
+	PullingErrorNetError = "net_error"
+)
+
+func (uc UpstreamConf) InitPullingError() {
+	if _, ok := uc[PullingErrorKey]; !ok {
+		uc[PullingErrorKey] = ""
+	}
 }
 
-func (uc *UpstreamConf) Equal(that *UpstreamConf) bool {
-	if len(uc.ConfItems) != len(that.ConfItems) {
+func (uc UpstreamConf) Equal(that UpstreamConf) bool {
+	uc.InitPullingError()
+	that.InitPullingError()
+	if len(uc) != len(that) {
 		return false
 	}
-	for k, v := range uc.ConfItems {
-		if vv, ok := that.ConfItems[k]; !ok || vv != v {
+	for k, v := range uc {
+		if k == PullingErrorKey {
+			continue
+		}
+		if vv, ok := that[k]; !ok || vv != v {
 			return false
 		}
 	}
 	return true
 }
-
 
 const (
 	LRUTimeout = 30 * time.Minute
@@ -105,16 +119,16 @@ func parseUpstreams(config *Config) (err error) {
 		g := &config.Groups[i]
 		for j, upstreamConf := range g.Upstreams {
 			var upstream Upstream
-			switch upstreamConf.ConfItems["type"] {
+			switch upstreamConf["type"] {
 			case "outline":
 				var outline Outline
-				err = Map2upstream(upstreamConf.ConfItems, &outline)
+				err = Map2Upstream(upstreamConf, &outline)
 				if err != nil {
 					return
 				}
 				upstream = outline
 			default:
-				return fmt.Errorf("unknown upstream type: %v", upstreamConf.ConfItems["type"])
+				return fmt.Errorf("unknown upstream type: %v", upstreamConf["type"])
 			}
 			if !logged {
 				log.Println("pulling configures from upstreams...")
@@ -122,8 +136,11 @@ func parseUpstreams(config *Config) (err error) {
 			}
 			servers, err := upstream.GetServers()
 			if err != nil {
-				upstreamConf.PullingError = err
-				log.Printf("[warning] Failed to retrieve configure from groups[%d].upstreams[%d]: %v\n", i, j, err)
+				var netError net.Error
+				if errors.As(err, &netError) {
+					upstreamConf[PullingErrorKey] = PullingErrorNetError
+				}
+				log.Printf("[warning] Failed to retrieve configure from groups[%d].upstreams[%d]: %v: %v\n", i, j, err, upstreamConf[PullingErrorKey])
 				continue
 			}
 			for i := range servers {

@@ -4,7 +4,6 @@ import (
 	"github.com/Qv2ray/mmp-go/config"
 	"github.com/Qv2ray/mmp-go/dispatcher"
 	"log"
-	"net"
 	"sync"
 )
 
@@ -26,13 +25,10 @@ func ReloadConfig() {
 	}
 	// check if there is any net error when pulling the upstream configurations
 	for i := range newConf.Groups {
-		newGroup := newConf.Groups[i]
+		newGroup := &newConf.Groups[i]
 		for j := range newGroup.Upstreams {
 			newUpstream := newGroup.Upstreams[j]
-			if newUpstream.PullingError == nil {
-				continue
-			}
-			if _, ok := newUpstream.PullingError.(net.Error); !ok {
+			if newUpstream[config.PullingErrorKey] != config.PullingErrorNetError {
 				continue
 			}
 			// net error, remain those servers
@@ -45,6 +41,7 @@ func ReloadConfig() {
 					continue
 				}
 				oldGroup = &oldConf.Groups[k]
+				break
 			}
 			if oldGroup == nil {
 				// cannot find the corresponding old group
@@ -53,7 +50,7 @@ func ReloadConfig() {
 			// check if upstreamConf can match
 			for k := range oldGroup.Servers {
 				oldServer := oldGroup.Servers[k]
-				if newUpstream.Equal(oldServer.UpstreamConf) {
+				if oldServer.UpstreamConf != nil && newUpstream.Equal(*oldServer.UpstreamConf) {
 					// remain the server
 					newGroup.Servers = append(newGroup.Servers, oldServer)
 				}

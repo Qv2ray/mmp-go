@@ -44,11 +44,8 @@ func (d *TCP) Listen() (err error) {
 	for {
 		conn, err := d.l.Accept()
 		if err != nil {
-			switch err := err.(type) {
-			case *net.OpError:
-				if errors.Is(err.Unwrap(), net.ErrClosed) {
-					return nil
-				}
+			if errors.Is(err, net.ErrClosed) {
+				return nil
 			}
 			log.Printf("[error] ReadFrom: %v", err)
 			continue
@@ -89,7 +86,7 @@ func (d *TCP) handleConn(conn net.Conn) error {
 	defer pool.Put(buf)
 	n, err := io.ReadFull(conn, data)
 	if err != nil {
-		return fmt.Errorf("[tcp] handleConn readfull error: %v", err)
+		return fmt.Errorf("[tcp] handleConn readfull error: %w", err)
 	}
 
 	// get user's context (preference)
@@ -110,13 +107,13 @@ func (d *TCP) handleConn(conn net.Conn) error {
 	// dial and relay
 	rc, err := net.Dial("tcp", server.Target)
 	if err != nil {
-		return fmt.Errorf("[tcp] handleConn dial error: %v", err)
+		return fmt.Errorf("[tcp] handleConn dial error: %w", err)
 	}
 
 	_ = rc.SetDeadline(time.Now().Add(DefaultTimeout))
 	_, err = rc.Write(data[:n])
 	if err != nil {
-		return fmt.Errorf("[tcp] handleConn write error: %v", err)
+		return fmt.Errorf("[tcp] handleConn write error: %w", err)
 	}
 
 	log.Printf("[tcp] %s <-> %s <-> %s", conn.RemoteAddr(), conn.LocalAddr(), rc.RemoteAddr())
@@ -125,7 +122,7 @@ func (d *TCP) handleConn(conn net.Conn) error {
 		if err, ok := err.(net.Error); ok && err.Timeout() {
 			return nil // ignore i/o timeout
 		}
-		return fmt.Errorf("[tcp] handleConn relay error: %v", err)
+		return fmt.Errorf("[tcp] handleConn relay error: %w", err)
 	}
 	return nil
 }
