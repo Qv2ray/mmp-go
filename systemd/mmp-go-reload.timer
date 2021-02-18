@@ -1,0 +1,12 @@
+[Unit]
+Description=Daily Reload mmp-go service
+Documentation=https://github.com/Qv2ray/mmp-go/
+After=mmp-go.service
+
+[Timer]
+OnActiveSec=1d
+OnUnitActiveSec=1d
+RandomizedDelaySec=30min
+
+[Install]
+WantedBy=timer.target
