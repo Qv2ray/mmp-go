@@ -2,11 +2,13 @@ package config
 
 import (
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"github.com/Qv2ray/mmp-go/cipher"
 	"github.com/Qv2ray/mmp-go/infra/lru"
 	"log"
+	"net"
 	"os"
 	"sync"
 	"time"
@@ -17,17 +19,46 @@ type Config struct {
 	Groups   []Group `json:"groups"`
 }
 type Server struct {
-	Target    string `json:"target"`
-	Method    string `json:"method"`
-	Password  string `json:"password"`
-	MasterKey []byte `json:"-"`
+	Target       string        `json:"target"`
+	Method       string        `json:"method"`
+	Password     string        `json:"password"`
+	MasterKey    []byte        `json:"-"`
+	UpstreamConf *UpstreamConf `json:"-"`
 }
 type Group struct {
-	Port            int                 `json:"port"`
-	Servers         []Server            `json:"servers"`
-	Upstreams       []map[string]string `json:"upstreams"`
-	LRUSize         int                 `json:"lruSize"`
-	UserContextPool *UserContextPool    `json:"-"`
+	Port            int              `json:"port"`
+	Servers         []Server         `json:"servers"`
+	Upstreams       []UpstreamConf   `json:"upstreams"`
+	UserContextPool *UserContextPool `json:"-"`
+}
+type UpstreamConf map[string]string
+
+const (
+	PullingErrorKey      = "__pulling_error__"
+	PullingErrorNetError = "net_error"
+)
+
+func (uc UpstreamConf) InitPullingError() {
+	if _, ok := uc[PullingErrorKey]; !ok {
+		uc[PullingErrorKey] = ""
+	}
+}
+
+func (uc UpstreamConf) Equal(that UpstreamConf) bool {
+	uc.InitPullingError()
+	that.InitPullingError()
+	if len(uc) != len(that) {
+		return false
+	}
+	for k, v := range uc {
+		if k == PullingErrorKey {
+			continue
+		}
+		if vv, ok := that[k]; !ok || vv != v {
+			return false
+		}
+	}
+	return true
 }
 
 const (
@@ -85,18 +116,18 @@ func parseUpstreams(config *Config) (err error) {
 	logged := false
 	for i := range config.Groups {
 		g := &config.Groups[i]
-		for j, u := range g.Upstreams {
+		for j, upstreamConf := range g.Upstreams {
 			var upstream Upstream
-			switch u["type"] {
+			switch upstreamConf["type"] {
 			case "outline":
 				var outline Outline
-				err = Map2upstream(u, &outline)
+				err = Map2Upstream(upstreamConf, &outline)
 				if err != nil {
 					return
 				}
 				upstream = outline
 			default:
-				return fmt.Errorf("unknown upstream type: %v", u["type"])
+				return fmt.Errorf("unknown upstream type: %v", upstreamConf["type"])
 			}
 			if !logged {
 				log.Println("pulling configures from upstreams...")
@@ -104,8 +135,14 @@ func parseUpstreams(config *Config) (err error) {
 			}
 			servers, err := upstream.GetServers()
 			if err != nil {
-				log.Printf("[warning] Failed to retrieve configure from groups[%d].upstreams[%d]: %v\n", i, j, err)
+				if netError := new(net.Error); errors.As(err, netError) {
+					upstreamConf[PullingErrorKey] = PullingErrorNetError
+				}
+				log.Printf("[warning] Failed to retrieve configure from groups[%d].upstreams[%d]: %v: %v\n", i, j, err, upstreamConf[PullingErrorKey])
 				continue
+			}
+			for i := range servers {
+				servers[i].UpstreamConf = &upstreamConf
 			}
 			g.Servers = append(g.Servers, servers...)
 		}

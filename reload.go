@@ -17,10 +17,45 @@ func ReloadConfig() {
 
 	// rebuild config
 	confPath := config.GetConfig().ConfPath
+	oldConf := config.GetConfig()
 	newConf, err := config.BuildConfig(confPath)
 	if err != nil {
 		log.Printf("failed to reload configuration: %v", err)
 		return
+	}
+	// check if there is any net error when pulling the upstream configurations
+	for i := range newConf.Groups {
+		newGroup := &newConf.Groups[i]
+		for j := range newGroup.Upstreams {
+			newUpstream := newGroup.Upstreams[j]
+			if newUpstream[config.PullingErrorKey] != config.PullingErrorNetError {
+				continue
+			}
+			// net error, remain those servers
+
+			// find the group in the oldConf
+			var oldGroup *config.Group
+			for k := range oldConf.Groups {
+				// they should have the same port
+				if oldConf.Groups[k].Port != newGroup.Port {
+					continue
+				}
+				oldGroup = &oldConf.Groups[k]
+				break
+			}
+			if oldGroup == nil {
+				// cannot find the corresponding old group
+				continue
+			}
+			// check if upstreamConf can match
+			for k := range oldGroup.Servers {
+				oldServer := oldGroup.Servers[k]
+				if oldServer.UpstreamConf != nil && newUpstream.Equal(*oldServer.UpstreamConf) {
+					// remain the server
+					newGroup.Servers = append(newGroup.Servers, oldServer)
+				}
+			}
+		}
 	}
 	config.SetConfig(newConf)
 	c := newConf

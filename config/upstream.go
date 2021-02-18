@@ -11,7 +11,7 @@ type Upstream interface {
 
 var InvalidUpstreamErr = fmt.Errorf("invalid upstream")
 
-func Map2upstream(m map[string]string, upstream interface{}) error {
+func Map2Upstream(m map[string]string, upstream interface{}) error {
 	v := reflect.ValueOf(upstream)
 	if !v.IsValid() {
 		return fmt.Errorf("upstream should not be nil")

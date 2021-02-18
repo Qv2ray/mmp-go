@@ -81,12 +81,12 @@ func (d *UDP) handleConn(laddr net.Addr, data []byte, n int) (err error) {
 		if err == AuthFailedErr {
 			return nil
 		}
-		return fmt.Errorf("[udp] handleConn dial target error: %v", err)
+		return fmt.Errorf("[udp] handleConn dial target error: %w", err)
 	}
 
 	// send packet
 	if _, err = rc.Write(data[:n]); err != nil {
-		return fmt.Errorf("[udp] handleConn write error: %v", err)
+		return fmt.Errorf("[udp] handleConn write error: %w", err)
 	}
 	return nil
 }
@@ -136,7 +136,7 @@ func (d *UDP) GetOrBuildUCPConn(laddr net.Addr, data []byte) (rc *net.UDPConn, e
 			d.nm.Lock()
 			d.nm.Remove(socketIdent) // close channel to inform that establishment ends
 			d.nm.Unlock()
-			return nil, fmt.Errorf("GetOrBuildUCPConn dial error: %v", err)
+			return nil, fmt.Errorf("GetOrBuildUCPConn dial error: %w", err)
 		}
 		rc = rconn.(*net.UDPConn)
 		d.nm.Lock()
