@@ -1,7 +1,8 @@
 [Unit]
 Description=Reload mmp-go service (%i)
-After=mmp-go.service
+Documentation=https://github.com/Qv2ray/mmp-go/
+After=mmp-go@%i.service
 
 [Service]
 Type=oneshot
-ExecStart=/bin/systemctl reload mmp-go@%i
+ExecStart=/bin/systemctl reload mmp-go@%i.service

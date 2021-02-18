@@ -46,7 +46,11 @@ systemctl edit mmp-go-reload.timer
 
 Fill in your customized values, for example:
 ```
-# empty value means first remove the preset value
+# empty value means to remove the preset value
+[Unit]
+Description=
+Description=Eight-Hourly Reload mmp-go service 
+
 [Timer]
 OnActiveSec=
 OnActiveSec=8h

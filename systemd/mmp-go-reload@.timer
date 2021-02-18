@@ -1,3 +1,8 @@
+[Unit]
+Description=Daily Reload mmp-go service (%i)
+Documentation=https://github.com/Qv2ray/mmp-go/
+After=mmp-go@%i.service
+
 [Timer]
 OnActiveSec=1d
 OnUnitActiveSec=1d
