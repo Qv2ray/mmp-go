@@ -79,6 +79,7 @@ func (d *TCP) handleConn(conn net.Conn) error {
 		userContext *config.UserContext
 	)
 	defer conn.Close()
+	_ = conn.(*net.TCPConn).SetKeepAlive(true)
 
 	var data = pool.Get(BasicLen)
 	defer pool.Put(data)
@@ -109,6 +110,7 @@ func (d *TCP) handleConn(conn net.Conn) error {
 	if err != nil {
 		return fmt.Errorf("[tcp] handleConn dial error: %w", err)
 	}
+	_ = rc.(*net.TCPConn).SetKeepAlive(true)
 
 	_ = rc.SetDeadline(time.Now().Add(DefaultTimeout))
 	_, err = rc.Write(data[:n])
