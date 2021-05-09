@@ -127,6 +127,16 @@ func (d *UDP) GetOrBuildUCPConn(laddr net.Addr, data []byte) (rc *net.UDPConn, e
 		// auth every server
 		server, content := d.Auth(buf, data, userContext)
 		if server == nil {
+			d.nm.Lock()
+			// remove socketIdent to avoid goroutine leak
+			if conn, ok = d.nm.Get(socketIdent); ok {
+				select {
+				case <-conn.Establishing:
+				default:
+					d.nm.Remove(socketIdent)
+				}
+			}
+			d.nm.Unlock()
 			return nil, AuthFailedErr
 		}
 
