@@ -3,7 +3,7 @@ WORKDIR /build
 ADD .git ./.git
 RUN git describe --abbrev=0 --tags > ./version
 
-FROM golang:alpine AS builder
+FROM golang:1.16-alpine AS builder
 WORKDIR /build
 ADD . .
 ENV GO111MODULE=on
