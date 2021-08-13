@@ -201,15 +201,8 @@ func sudoCombinedOutput(client *ssh.Client, password string, cmd string) (b []by
 	}
 	defer session.Close()
 	b, err = session.CombinedOutput("sh -c " + strconv.Quote(fmt.Sprintf("echo %v|sudo -p %v -S %v", strconv.Quote(password), strconv.Quote(prompt), cmd)))
-	lines := strings.Split(string(b), "\n")
-	b = bytes.TrimPrefix(b, []byte(prompt))
-	var n int
-	for _, line := range lines {
-		if strings.Contains(line, prompt) {
-			n++
-		}
-	}
-	if n > 1 {
+	b = bytes.TrimPrefix(bytes.TrimSpace(b), []byte(prompt))
+	if bytes.Contains(b, []byte(prompt)) {
 		return b, IncorrectPasswordErr
 	}
 	return b, err
