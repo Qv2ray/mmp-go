@@ -31,6 +31,8 @@ type Outline struct {
 
 const timeout = 10 * time.Second
 
+var IncorrectPasswordErr = fmt.Errorf("incorrect password")
+
 func (outline Outline) getConfig() ([]byte, error) {
 	if outline.Server == "" {
 		return nil, fmt.Errorf("server field cannot be empty")
@@ -155,17 +157,62 @@ func (outline Outline) getConfigFromSSH() ([]byte, error) {
 	}
 	defer client.Close()
 
+	const cmd = "cat /opt/outline/persisted-state/shadowbox_config.json"
+	gid, err := getGroupID(client)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get gid: %w", err)
+	}
+	if gid == "0" {
+		session, err := client.NewSession()
+		if err != nil {
+			return nil, fmt.Errorf("failed to create session: %w", err)
+		}
+		defer session.Close()
+		out, err := session.CombinedOutput(cmd)
+		if err != nil {
+			err = fmt.Errorf("%v: %w", string(bytes.TrimSpace(out)), err)
+			return nil, err
+		}
+		return out, nil
+	} else {
+		out, err := sudoCombinedOutput(client, outline.SSHPassword, cmd)
+		if err != nil {
+			return nil, fmt.Errorf("failed to execute sudo: %w", err)
+		}
+		return out, nil
+	}
+}
+
+func getGroupID(client *ssh.Client) (gid string, err error) {
 	session, err := client.NewSession()
 	if err != nil {
-		return nil, fmt.Errorf("failed to create session: %w", err)
+		return "", err
 	}
 	defer session.Close()
-	out, err := session.CombinedOutput("cat /opt/outline/persisted-state/shadowbox_config.json")
+	b, err := session.Output("id -g")
+	return strings.TrimSpace(string(b)), err
+}
+
+func sudoCombinedOutput(client *ssh.Client, password string, cmd string) (b []byte, err error) {
+	const prompt = "[INPUT YOUR PASSWORD]"
+	session, err := client.NewSession()
 	if err != nil {
-		err = fmt.Errorf("%v: %w", string(bytes.TrimSpace(out)), err)
 		return nil, err
 	}
-	return out, nil
+	defer session.Close()
+	b, err = session.CombinedOutput("sh -c " + strconv.Quote(fmt.Sprintf("echo %v|sudo -p %v -S %v", strconv.Quote(password), strconv.Quote(prompt), cmd)))
+	lines := strings.Split(string(b), "\n")
+	b = bytes.TrimPrefix(b, []byte(prompt))
+	var n int
+	for _, line := range lines {
+		if strings.Contains(line, prompt) {
+			n++
+		}
+	}
+	if n > 1 {
+		return b, IncorrectPasswordErr
+	}
+	return b, err
 }
 
 func (outline Outline) GetServers() (servers []Server, err error) {
