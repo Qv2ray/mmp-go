@@ -196,11 +196,16 @@ func GetConfig() *Config {
 
 		version := flag.Bool("v", false, "version")
 		confPath := flag.String("conf", "example.json", "config file path")
+		suppressTimestamps := flag.Bool("suppress-timestamps", false, "do not include timestamps in log")
 		flag.Parse()
 
 		if *version {
 			fmt.Println(Version)
 			os.Exit(0)
+		}
+
+		if *suppressTimestamps {
+			log.SetFlags(log.Flags() &^ (log.Ldate | log.Ltime))
 		}
 
 		if config, err = BuildConfig(*confPath); err != nil {
