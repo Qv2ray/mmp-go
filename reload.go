@@ -2,18 +2,14 @@ package main
 
 import (
 	"github.com/Qv2ray/mmp-go/config"
-	"github.com/Qv2ray/mmp-go/dispatcher"
 	"log"
-	"sync"
 )
 
-var mMutex sync.Mutex
-var mPortDispatcher = make(map[int]*[len(protocols)]dispatcher.Dispatcher)
 
 func ReloadConfig() {
 	log.Println("Reloading configuration")
-	mMutex.Lock()
-	defer mMutex.Unlock()
+	mPortDispatcher.Lock()
+	defer mPortDispatcher.Unlock()
 
 	// rebuild config
 	confPath := config.GetConfig().ConfPath
@@ -65,22 +61,25 @@ func ReloadConfig() {
 	for i := range c.Groups {
 		newConfPortSet[c.Groups[i].Port] = struct{}{}
 
-		if t, ok := mPortDispatcher[c.Groups[i].Port]; ok {
+		if t, ok := mPortDispatcher.Map[c.Groups[i].Port]; ok {
 			// update the existing dispatcher
 			for j := range protocols {
 				t[j].UpdateGroup(&c.Groups[i])
 			}
 		} else {
 			// add a new port dispatcher
-			wg.Add(1)
-			go listen(&c.Groups[i])
+			groupWG.Add(1)
+			go func(group *config.Group) {
+				listenGroup(group)
+				groupWG.Done()
+			}(&c.Groups[i])
 		}
 	}
 	// close all removed port dispatcher
-	for port := range mPortDispatcher {
+	for port := range mPortDispatcher.Map {
 		if _, ok := newConfPortSet[port]; !ok {
-			t := mPortDispatcher[port]
-			delete(mPortDispatcher, port)
+			t := mPortDispatcher.Map[port]
+			delete(mPortDispatcher.Map, port)
 			for j := range protocols {
 				_ = (*t)[j].Close()
 			}

@@ -9,43 +9,42 @@ import (
 	"sync"
 )
 
-var protocols = [...]string{"tcp", "udp"}
-var wg sync.WaitGroup
+type MapPortDispatcher map[int]*[len(protocols)]dispatcher.Dispatcher
 
-func main() {
-	// handle reload
-	go signalHandler()
-
-	mMutex.Lock()
-	conf := config.GetConfig()
-	for i := range conf.Groups {
-		wg.Add(1)
-		go listen(&conf.Groups[i])
-	}
-	mMutex.Unlock()
-	wg.Wait()
+type SyncMapPortDispatcher struct {
+	sync.Mutex
+	Map  MapPortDispatcher
 }
 
-func listen(group *config.Group) {
-	err := listenWithProtocols(group, protocols[:])
+func NewSyncMapPortDispatcher() *SyncMapPortDispatcher {
+	return &SyncMapPortDispatcher{Map: make(MapPortDispatcher)}
+}
+
+var (
+	protocols       = [...]string{"tcp", "udp"}
+	groupWG         sync.WaitGroup
+	mPortDispatcher = NewSyncMapPortDispatcher()
+)
+
+func listenGroup(group *config.Group) {
+	err := listenProtocols(group, protocols[:])
 	if err != nil {
-		mMutex.Lock()
+		mPortDispatcher.Lock()
 		// error but listening
-		if _, ok := mPortDispatcher[group.Port]; ok {
+		if _, ok := mPortDispatcher.Map[group.Port]; ok {
 			log.Fatalln(err)
 		}
-		mMutex.Unlock()
+		mPortDispatcher.Unlock()
 	}
-	wg.Done()
 }
 
-func listenWithProtocols(group *config.Group, protocols []string) error {
-	mMutex.Lock()
-	if _, ok := mPortDispatcher[group.Port]; !ok {
-		mPortDispatcher[group.Port] = new([2]dispatcher.Dispatcher)
+func listenProtocols(group *config.Group, protocols []string) error {
+	mPortDispatcher.Lock()
+	if _, ok := mPortDispatcher.Map[group.Port]; !ok {
+		mPortDispatcher.Map[group.Port] = new([2]dispatcher.Dispatcher)
 	}
-	t := mPortDispatcher[group.Port]
-	mMutex.Unlock()
+	t := mPortDispatcher.Map[group.Port]
+	mPortDispatcher.Unlock()
 
 	ch := make(chan error, len(protocols))
 	for i, protocol := range protocols {
@@ -58,4 +57,21 @@ func listenWithProtocols(group *config.Group, protocols []string) error {
 		}()
 	}
 	return <-ch
+}
+
+func main() {
+	// handle reload
+	go signalHandler()
+
+	mPortDispatcher.Lock()
+	conf := config.GetConfig()
+	for i := range conf.Groups {
+		groupWG.Add(1)
+		go func(group *config.Group) {
+			listenGroup(group)
+			groupWG.Done()
+		}(&conf.Groups[i])
+	}
+	mPortDispatcher.Unlock()
+	groupWG.Wait()
 }
