@@ -134,28 +134,23 @@ func pullFromUpstream(upstream Upstream, upstreamConf *UpstreamConf) ([]Server, 
 func parseUpstreams(config *Config) (err error) {
 	var wg sync.WaitGroup
 
-	for _, g := range config.Groups {
-		if len(g.Upstreams) > 0 {
-			log.Println("Pulling from upstreams")
-			break
-		}
-	}
 	for i := range config.Groups {
 		group := &config.Groups[i]
 		mu := sync.Mutex{}
-		for i, upstreamConf := range group.Upstreams {
+		for i := range group.Upstreams {
 			var upstream Upstream
+			upstreamConf := &group.Upstreams[i]
 
-			switch upstreamConf["type"] {
+			switch (*upstreamConf)["type"] {
 			case "outline":
 				var outline Outline
-				err = Map2Upstream(upstreamConf, &outline)
+				err = Map2Upstream(*upstreamConf, &outline)
 				if err != nil {
-					return
+					return err
 				}
 				upstream = outline
 			default:
-				return fmt.Errorf("unknown upstream type: %v", upstreamConf["type"])
+				return fmt.Errorf("unknown upstream type: %v", (*upstreamConf)["type"])
 			}
 
 			wg.Add(1)
@@ -173,7 +168,7 @@ func parseUpstreams(config *Config) (err error) {
 				group.Servers = append(group.Servers, servers...)
 				mu.Unlock()
 				log.Printf("Pulled %d servers from group %s upstream %s", len(servers), group.Name, upstream.GetName())
-			}(group, &group.Upstreams[i])
+			}(group, upstreamConf)
 		}
 	}
 
