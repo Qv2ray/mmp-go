@@ -170,9 +170,7 @@ func parseUpstreams(config *Config) (err error) {
 					return
 				}
 				mu.Lock()
-				for i := range servers {
-					servers[i].UpstreamConf = upstreamConf
-				}
+				group.Servers = append(group.Servers, servers...)
 				mu.Unlock()
 				log.Printf("Pulled %d servers from group %s upstream %s", len(servers), group.Name, upstream.GetName())
 			}(group, &group.Upstreams[i])
