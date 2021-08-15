@@ -120,37 +120,30 @@ func (config *Config) CheckDiverseCombinations() error {
 	return nil
 }
 
-func pullFromUpstream(upstream Upstream, upstreamConf *UpstreamConf, group *Group, wg *sync.WaitGroup, mu *sync.Mutex) {
-	defer wg.Done()
-
+func pullFromUpstream(upstream Upstream, upstreamConf *UpstreamConf) ([]Server, error) {
 	servers, err := upstream.GetServers()
 	if err != nil {
-		if netError := new(net.Error); errors.As(err, netError) {
-			(*upstreamConf)[PullingErrorKey] = PullingErrorNetError
-		}
-		log.Printf("[warning] Failed to pull from group %s upstream %s: %v: %v\n", group.Name, upstream.GetName(), err, (*upstreamConf)[PullingErrorKey])
-		return
+		return nil, err
 	}
-
 	for i := range servers {
 		servers[i].UpstreamConf = upstreamConf
 	}
-
-	mu.Lock()
-	group.Servers = append(group.Servers, servers...)
-	mu.Unlock()
-
-	log.Printf("Pulled %d servers from group %s upstream %s", len(servers), group.Name, upstream.GetName())
+	return servers, nil
 }
 
 func parseUpstreams(config *Config) (err error) {
 	var wg sync.WaitGroup
 
-	log.Println("Pulling from upstreams")
+	for _, g := range config.Groups {
+		if len(g.Upstreams) > 0 {
+			log.Println("Pulling from upstreams")
+			break
+		}
+	}
 	for i := range config.Groups {
 		group := &config.Groups[i]
 		mu := sync.Mutex{}
-		for _, upstreamConf := range group.Upstreams {
+		for i, upstreamConf := range group.Upstreams {
 			var upstream Upstream
 
 			switch upstreamConf["type"] {
@@ -166,7 +159,23 @@ func parseUpstreams(config *Config) (err error) {
 			}
 
 			wg.Add(1)
-			go pullFromUpstream(upstream, &upstreamConf, group, &wg, &mu)
+			go func(group *Group, upstreamConf *UpstreamConf) {
+				defer wg.Done()
+				servers, err := pullFromUpstream(upstream, upstreamConf)
+				if err != nil {
+					if netError := new(net.Error); errors.As(err, netError) {
+						(*upstreamConf)[PullingErrorKey] = PullingErrorNetError
+					}
+					log.Printf("[warning] Failed to pull from group %s upstream %s: %v\n", group.Name, upstream.GetName(), err)
+					return
+				}
+				mu.Lock()
+				for i := range servers {
+					servers[i].UpstreamConf = upstreamConf
+				}
+				mu.Unlock()
+				log.Printf("Pulled %d servers from group %s upstream %s", len(servers), group.Name, upstream.GetName())
+			}(group, &group.Upstreams[i])
 		}
 	}
 
