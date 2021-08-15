@@ -13,7 +13,7 @@ type MapPortDispatcher map[int]*[len(protocols)]dispatcher.Dispatcher
 
 type SyncMapPortDispatcher struct {
 	sync.Mutex
-	Map  MapPortDispatcher
+	Map MapPortDispatcher
 }
 
 func NewSyncMapPortDispatcher() *SyncMapPortDispatcher {

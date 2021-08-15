@@ -18,19 +18,24 @@ type Config struct {
 	ConfPath string  `json:"-"`
 	Groups   []Group `json:"groups"`
 }
+
 type Server struct {
+	Name         string        `json:"name"`
 	Target       string        `json:"target"`
 	Method       string        `json:"method"`
 	Password     string        `json:"password"`
 	MasterKey    []byte        `json:"-"`
 	UpstreamConf *UpstreamConf `json:"-"`
 }
+
 type Group struct {
+	Name            string           `json:"name"`
 	Port            int              `json:"port"`
 	Servers         []Server         `json:"servers"`
 	Upstreams       []UpstreamConf   `json:"upstreams"`
 	UserContextPool *UserContextPool `json:"-"`
 }
+
 type UpstreamConf map[string]string
 
 const (
@@ -78,6 +83,7 @@ func (g *Group) BuildMasterKeys() {
 		s.MasterKey = cipher.EVPBytesToKey(s.Password, cipher.CiphersConf[s.Method].KeyLen)
 	}
 }
+
 func (g *Group) BuildUserContextPool(timeout time.Duration) {
 	g.UserContextPool = (*UserContextPool)(lru.New(lru.FixedTimeout, int64(timeout)))
 }
@@ -92,6 +98,7 @@ func (config *Config) CheckMethodSupported() error {
 	}
 	return nil
 }
+
 func (config *Config) CheckDiverseCombinations() error {
 	groups := config.Groups
 	type methodPasswd struct {
@@ -112,43 +119,63 @@ func (config *Config) CheckDiverseCombinations() error {
 	}
 	return nil
 }
+
+func pullFromUpstream(upstream Upstream, upstreamConf *UpstreamConf) ([]Server, error) {
+	servers, err := upstream.GetServers()
+	if err != nil {
+		return nil, err
+	}
+	for i := range servers {
+		servers[i].UpstreamConf = upstreamConf
+	}
+	return servers, nil
+}
+
 func parseUpstreams(config *Config) (err error) {
-	logged := false
+	var wg sync.WaitGroup
+
 	for i := range config.Groups {
-		g := &config.Groups[i]
-		for j, upstreamConf := range g.Upstreams {
+		group := &config.Groups[i]
+		mu := sync.Mutex{}
+		for i := range group.Upstreams {
 			var upstream Upstream
-			switch upstreamConf["type"] {
+			upstreamConf := &group.Upstreams[i]
+
+			switch (*upstreamConf)["type"] {
 			case "outline":
 				var outline Outline
-				err = Map2Upstream(upstreamConf, &outline)
+				err = Map2Upstream(*upstreamConf, &outline)
 				if err != nil {
-					return
+					return err
 				}
 				upstream = outline
 			default:
-				return fmt.Errorf("unknown upstream type: %v", upstreamConf["type"])
+				return fmt.Errorf("unknown upstream type: %v", (*upstreamConf)["type"])
 			}
-			if !logged {
-				log.Println("pulling configures from upstreams...")
-				logged = true
-			}
-			servers, err := upstream.GetServers()
-			if err != nil {
-				if netError := new(net.Error); errors.As(err, netError) {
-					upstreamConf[PullingErrorKey] = PullingErrorNetError
+
+			wg.Add(1)
+			go func(group *Group, upstreamConf *UpstreamConf) {
+				defer wg.Done()
+				servers, err := pullFromUpstream(upstream, upstreamConf)
+				if err != nil {
+					if netError := new(net.Error); errors.As(err, netError) {
+						(*upstreamConf)[PullingErrorKey] = PullingErrorNetError
+					}
+					log.Printf("[warning] Failed to pull from group %s upstream %s: %v\n", group.Name, upstream.GetName(), err)
+					return
 				}
-				log.Printf("[warning] Failed to retrieve configure from groups[%d].upstreams[%d]: %v: %v\n", i, j, err, upstreamConf[PullingErrorKey])
-				continue
-			}
-			for i := range servers {
-				servers[i].UpstreamConf = &upstreamConf
-			}
-			g.Servers = append(g.Servers, servers...)
+				mu.Lock()
+				group.Servers = append(group.Servers, servers...)
+				mu.Unlock()
+				log.Printf("Pulled %d servers from group %s upstream %s", len(servers), group.Name, upstream.GetName())
+			}(group, upstreamConf)
 		}
 	}
+
+	wg.Wait()
 	return nil
 }
+
 func check(config *Config) (err error) {
 	if err = config.CheckMethodSupported(); err != nil {
 		return
@@ -158,6 +185,7 @@ func check(config *Config) (err error) {
 	}
 	return
 }
+
 func build(config *Config) {
 	for i := range config.Groups {
 		g := &config.Groups[i]

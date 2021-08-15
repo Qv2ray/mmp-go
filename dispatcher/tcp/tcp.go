@@ -108,17 +108,17 @@ func (d *TCP) handleConn(conn net.Conn) error {
 	// dial and relay
 	rc, err := net.Dial("tcp", server.Target)
 	if err != nil {
-		return fmt.Errorf("[tcp] %s <-> %s <-x-> %s handleConn dial error: %w", conn.RemoteAddr(), conn.LocalAddr(), rc.RemoteAddr(), err)
+		return fmt.Errorf("[tcp] %s <-> %s <-x-> %s handleConn dial error: %w", conn.RemoteAddr(), conn.LocalAddr(), server.Target, err)
 	}
 	_ = rc.(*net.TCPConn).SetKeepAlive(true)
 
 	_ = rc.SetDeadline(time.Now().Add(DefaultTimeout))
 	_, err = rc.Write(data[:n])
 	if err != nil {
-		return fmt.Errorf("[tcp] %s <-> %s <-x-> %s handleConn write error: %w", conn.RemoteAddr(), conn.LocalAddr(), rc.RemoteAddr(), err)
+		return fmt.Errorf("[tcp] %s <-> %s <-x-> %s handleConn write error: %w", conn.RemoteAddr(), conn.LocalAddr(), server.Target, err)
 	}
 
-	log.Printf("[tcp] %s <-> %s <-> %s", conn.RemoteAddr(), conn.LocalAddr(), rc.RemoteAddr())
+	log.Printf("[tcp] %s <-> %s <-> %s", conn.RemoteAddr(), conn.LocalAddr(), server.Target)
 
 	if err := relay(conn, rc); err != nil {
 		if err, ok := err.(net.Error); ok && err.Timeout() {

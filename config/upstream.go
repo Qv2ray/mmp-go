@@ -6,6 +6,7 @@ import (
 )
 
 type Upstream interface {
+	GetName()    string
 	GetServers() (servers []Server, err error)
 }
 
