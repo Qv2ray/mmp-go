@@ -18,6 +18,7 @@ import (
 )
 
 type Outline struct {
+	Name          string `json:"name"`
 	Type          string `json:"type"`
 	Server        string `json:"server"`
 	Link          string `json:"link"`
@@ -208,6 +209,10 @@ func sudoCombinedOutput(client *ssh.Client, password string, cmd string) (b []by
 	return b, err
 }
 
+func (outline Outline) GetName() string {
+	return outline.Name
+}
+
 func (outline Outline) GetServers() (servers []Server, err error) {
 	defer func() {
 		if err != nil {
@@ -223,7 +228,7 @@ func (outline Outline) GetServers() (servers []Server, err error) {
 	if err != nil {
 		return
 	}
-	return conf.ToServers(outline.Server), nil
+	return conf.ToServers(outline.Name, outline.Server), nil
 }
 
 type AccessKey struct {
@@ -235,12 +240,13 @@ type AccessKey struct {
 	Method           string `json:"method"` // the alias of EncryptionMethod
 }
 
-func (key *AccessKey) ToServer(host string) Server {
+func (key *AccessKey) ToServer(name, host string) Server {
 	method := key.EncryptionMethod
 	if method == "" {
 		method = key.Method
 	}
 	return Server{
+		Name:     fmt.Sprintf("%s - %s", name, key.Name),
 		Target:   net.JoinHostPort(host, strconv.Itoa(key.Port)),
 		Method:   method,
 		Password: key.Password,
@@ -251,10 +257,10 @@ type ShadowboxConfig struct {
 	AccessKeys []AccessKey `json:"accessKeys"`
 }
 
-func (c *ShadowboxConfig) ToServers(host string) []Server {
+func (c *ShadowboxConfig) ToServers(name, host string) []Server {
 	var servers []Server
 	for _, k := range c.AccessKeys {
-		servers = append(servers, k.ToServer(host))
+		servers = append(servers, k.ToServer(name, host))
 	}
 	return servers
 }

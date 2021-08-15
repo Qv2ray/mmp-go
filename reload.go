@@ -5,7 +5,6 @@ import (
 	"log"
 )
 
-
 func ReloadConfig() {
 	log.Println("Reloading configuration")
 	mPortDispatcher.Lock()

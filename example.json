@@ -1,14 +1,17 @@
 {
   "groups": [
     {
+      "name": "Group A",
       "port": 1090,
       "servers": [
         {
+          "name": "Server A0",
           "target": "45.10.10.10:8081",
           "method": "chacha20-ietf-poly1305",
           "password": "mypassword"
         },
         {
+          "name": "Server A1",
           "target": "jp.myss.cloudflare.com:18080",
           "method": "aes-128-gcm",
           "password": "hereismypasswrod"
@@ -16,19 +19,23 @@
       ]
     },
     {
+      "name": "Group B",
       "port": 1091,
       "servers": [
         {
+          "name": "Server B0",
           "target": "45.10.10.11:8088",
           "method": "chacha20-ietf-poly1305",
           "password": "mypassword"
         },
         {
+          "name": "Server B1",
           "target": "45.10.10.12:18088",
           "method": "chacha20-ietf-poly1305",
           "password": "mypassword2"
         },
         {
+          "name": "Server B2",
           "target": "jp.myss.cloudflare.com:18080",
           "method": "aes-128-gcm",
           "password": "hereismypasswrod"
