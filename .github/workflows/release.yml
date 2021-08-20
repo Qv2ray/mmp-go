@@ -51,10 +51,14 @@ jobs:
             goarch: arm
             goarm: 7
           # BEGIN Other architectures
+          - goos: darwin
+            goarch: arm64
           - goos: linux
             goarch: arm64
           - goos: linux
             goarch: riscv64
+          - goos: windows
+            goarch: arm64
           # BEGIN MIPS
           - goos: linux
             goarch: mips64

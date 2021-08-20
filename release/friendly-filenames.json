@@ -1,5 +1,6 @@
 {
   "darwin-amd64": { "friendlyName": "macos-64" },
+  "darwin-arm64": { "friendlyName": "macos-arm64-v8a" },
   "dragonfly-amd64": { "friendlyName": "dragonfly-64" },
   "freebsd-386": { "friendlyName": "freebsd-32" },
   "freebsd-amd64": { "friendlyName": "freebsd-64" },
@@ -18,6 +19,7 @@
   "openbsd-amd64": { "friendlyName": "openbsd-64" },
   "windows-amd64": { "friendlyName": "windows-64" },
   "windows-386": { "friendlyName": "windows-32" },
+  "windows-arm64": { "friendlyName": "windows-arm64-v8a" },
   "windows-arm7": { "friendlyName": "windows-arm32-v7a" },
   "android-arm64": { "friendlyName": "android-arm64-v8a" }
 }
