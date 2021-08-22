@@ -23,31 +23,32 @@ func ReloadConfig() {
 		newGroup := &newConf.Groups[i]
 		for j := range newGroup.Upstreams {
 			newUpstream := newGroup.Upstreams[j]
-			if newUpstream[config.PullingErrorKey] != config.PullingErrorNetError {
-				continue
-			}
-			// net error, remain those servers
+			pErr := newUpstream.GetPullingError()
+			if pErr != nil {
+				log.Printf("skip to update some servers in group %v , error on upstream %v: %v", newGroup.Name, newUpstream["name"], pErr)
+				// error occurred, remain those servers
 
-			// find the group in the oldConf
-			var oldGroup *config.Group
-			for k := range oldConf.Groups {
-				// they should have the same port
-				if oldConf.Groups[k].Port != newGroup.Port {
+				// find the group in the oldConf
+				var oldGroup *config.Group
+				for k := range oldConf.Groups {
+					// they should have the same port
+					if oldConf.Groups[k].Port != newGroup.Port {
+						continue
+					}
+					oldGroup = &oldConf.Groups[k]
+					break
+				}
+				if oldGroup == nil {
+					// cannot find the corresponding old group
 					continue
 				}
-				oldGroup = &oldConf.Groups[k]
-				break
-			}
-			if oldGroup == nil {
-				// cannot find the corresponding old group
-				continue
-			}
-			// check if upstreamConf can match
-			for k := range oldGroup.Servers {
-				oldServer := oldGroup.Servers[k]
-				if oldServer.UpstreamConf != nil && newUpstream.Equal(*oldServer.UpstreamConf) {
-					// remain the server
-					newGroup.Servers = append(newGroup.Servers, oldServer)
+				// check if upstreamConf can match
+				for k := range oldGroup.Servers {
+					oldServer := oldGroup.Servers[k]
+					if oldServer.UpstreamConf != nil && newUpstream.Equal(*oldServer.UpstreamConf) {
+						// remain the server
+						newGroup.Servers = append(newGroup.Servers, oldServer)
+					}
 				}
 			}
 		}

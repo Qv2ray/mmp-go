@@ -2,13 +2,11 @@ package config
 
 import (
 	"encoding/json"
-	"errors"
 	"flag"
 	"fmt"
 	"github.com/Qv2ray/mmp-go/cipher"
 	"github.com/Qv2ray/mmp-go/infra/lru"
 	"log"
-	"net"
 	"os"
 	"sync"
 	"time"
@@ -36,30 +34,36 @@ type Group struct {
 	UserContextPool *UserContextPool `json:"-"`
 }
 
-type UpstreamConf map[string]string
+type UpstreamConf map[string]interface{}
 
 const (
-	PullingErrorKey      = "__pulling_error__"
-	PullingErrorNetError = "net_error"
+	PullingErrorKey = "__pulling_error__"
 )
 
-func (uc UpstreamConf) InitPullingError() {
-	if _, ok := uc[PullingErrorKey]; !ok {
-		uc[PullingErrorKey] = ""
+func (uc UpstreamConf) GetPullingError() error {
+	if v, ok := uc[PullingErrorKey]; ok {
+		return v.(error)
 	}
+	return nil
+}
+func (uc UpstreamConf) SetPullingError(err error) {
+	uc[PullingErrorKey] = err
 }
 
 func (uc UpstreamConf) Equal(that UpstreamConf) bool {
-	uc.InitPullingError()
-	that.InitPullingError()
-	if len(uc) != len(that) {
-		return false
-	}
 	for k, v := range uc {
 		if k == PullingErrorKey {
 			continue
 		}
 		if vv, ok := that[k]; !ok || vv != v {
+			return false
+		}
+	}
+	for k, v := range that {
+		if k == PullingErrorKey {
+			continue
+		}
+		if vv, ok := uc[k]; !ok || vv != v {
 			return false
 		}
 	}
@@ -158,9 +162,7 @@ func parseUpstreams(config *Config) (err error) {
 				defer wg.Done()
 				servers, err := pullFromUpstream(upstream, upstreamConf)
 				if err != nil {
-					if netError := new(net.Error); errors.As(err, netError) {
-						(*upstreamConf)[PullingErrorKey] = PullingErrorNetError
-					}
+					upstreamConf.SetPullingError(err)
 					log.Printf("[warning] Failed to pull from group %s upstream %s: %v\n", group.Name, upstream.GetName(), err)
 					return
 				}
