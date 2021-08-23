@@ -12,7 +12,7 @@ type Upstream interface {
 
 var InvalidUpstreamErr = fmt.Errorf("invalid upstream")
 
-func Map2Upstream(m map[string]string, upstream interface{}) error {
+func Map2Upstream(m UpstreamConf, upstream interface{}) error {
 	v := reflect.ValueOf(upstream)
 	if !v.IsValid() {
 		return fmt.Errorf("upstream should not be nil")
@@ -27,7 +27,7 @@ func Map2Upstream(m map[string]string, upstream interface{}) error {
 		tag := f.Tag
 		key := tag.Get("json")
 		vf := v.Field(i)
-		vf.SetString(m[key])
+		vf.SetString(m[key].(string))
 	}
 	return nil
 }
