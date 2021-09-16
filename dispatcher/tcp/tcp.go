@@ -3,21 +3,21 @@ package tcp
 import (
 	"errors"
 	"fmt"
-	"github.com/Qv2ray/mmp-go/cipher"
-	"github.com/Qv2ray/mmp-go/config"
-	"github.com/Qv2ray/mmp-go/dispatcher"
-	"github.com/Qv2ray/mmp-go/infra/pool"
 	"io"
 	"log"
 	"net"
 	"sync"
 	"time"
+
+	"github.com/Qv2ray/mmp-go/cipher"
+	"github.com/Qv2ray/mmp-go/config"
+	"github.com/Qv2ray/mmp-go/dispatcher"
+	"github.com/Qv2ray/mmp-go/infra/pool"
 )
 
 //[salt][encrypted payload length][length tag][encrypted payload][payload tag]
 const (
-	DefaultTimeout = 7440 * time.Second
-	BasicLen       = 32 + 2 + 16
+	BasicLen = 32 + 2 + 16
 )
 
 func init() {
@@ -79,7 +79,6 @@ func (d *TCP) handleConn(conn net.Conn) error {
 		userContext *config.UserContext
 	)
 	defer conn.Close()
-	_ = conn.(*net.TCPConn).SetKeepAlive(true)
 
 	var data = pool.Get(BasicLen)
 	defer pool.Put(data)
@@ -110,9 +109,7 @@ func (d *TCP) handleConn(conn net.Conn) error {
 	if err != nil {
 		return fmt.Errorf("[tcp] %s <-> %s <-x-> %s handleConn dial error: %w", conn.RemoteAddr(), conn.LocalAddr(), server.Target, err)
 	}
-	_ = rc.(*net.TCPConn).SetKeepAlive(true)
 
-	_ = rc.SetDeadline(time.Now().Add(DefaultTimeout))
 	_, err = rc.Write(data[:n])
 	if err != nil {
 		return fmt.Errorf("[tcp] %s <-> %s <-x-> %s handleConn write error: %w", conn.RemoteAddr(), conn.LocalAddr(), server.Target, err)
