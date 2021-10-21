@@ -3,6 +3,7 @@
     {
       "name": "Group A",
       "port": 1090,
+      "listenerTCPFastOpen": false,
       "upstreams": [
         {
           "name": "Outline A0",
@@ -10,7 +11,8 @@
           "server": "23.115.204.133",
           "sshPort": "22",
           "sshUsername": "root",
-          "sshPassword": "bt92ew4yTTRfPHL335"
+          "sshPassword": "bt92ew4yTTRfPHL335",
+          "TCPFastOpen": false
         },
         {
           "name": "Outline A1",
@@ -18,32 +20,37 @@
           "server": "103.10.23.145",
           "sshPort": "22",
           "sshUsername": "outline",
-          "sshPrivateKey": "-----BEGIN OPENSSH PRIVATE KEY-----\n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\n-----END OPENSSH PRIVATE KEY-----\n"
+          "sshPrivateKey": "-----BEGIN OPENSSH PRIVATE KEY-----\n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\n-----END OPENSSH PRIVATE KEY-----\n",
+          "TCPFastOpen": false
         },
         {
           "name": "Outline A2",
           "type": "outline",
           "server": "131.13.130.120",
-          "link": "https://example.com/3BlbnNzaC1rZXktdjEAAAAABG/shadowbox_config.json"
+          "link": "https://example.com/3BlbnNzaC1rZXktdjEAAAAABG/shadowbox_config.json",
+          "TCPFastOpen": false
         },
         {
           "name": "Outline A3",
           "type": "outline",
           "server": "131.13.130.121",
           "apiUrl": "https://131.13.130.121:21230/4pn_faGFTa-bci6IA6ctYB",
-          "apiCertSha256": "07B19FB83B9EFDF12DC971C311B6B7931A589BC4BE389F306F45532813DEFC9A"
+          "apiCertSha256": "07B19FB83B9EFDF12DC971C311B6B7931A589BC4BE389F306F45532813DEFC9A",
+          "TCPFastOpen": false
         }
       ],
       "servers": [
         {
           "name": "Server A0",
           "target": "45.10.10.10:8081",
+          "TCPFastOpen": false,
           "method": "chacha20-ietf-poly1305",
           "password": "mypassword"
         },
         {
           "name": "Server A1",
           "target": "jp.myss.cloudflare.com:18080",
+          "TCPFastOpen": true,
           "method": "aes-128-gcm",
           "password": "hereismypasswrod"
         }
