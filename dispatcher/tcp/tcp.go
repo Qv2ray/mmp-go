@@ -18,6 +18,7 @@ import (
 //[salt][encrypted payload length][length tag][encrypted payload][payload tag]
 const (
 	BasicLen = 32 + 2 + 16
+	MaxLen   = BasicLen + 16383 + 16
 )
 
 func init() {
@@ -80,11 +81,11 @@ func (d *TCP) handleConn(conn net.Conn) error {
 	)
 	defer conn.Close()
 
-	var data = pool.Get(BasicLen)
+	data := pool.Get(MaxLen)
 	defer pool.Put(data)
-	var buf = pool.Get(BasicLen)
+	buf := pool.Get(BasicLen)
 	defer pool.Put(buf)
-	n, err := io.ReadFull(conn, data)
+	n, err := io.ReadAtLeast(conn, data, BasicLen)
 	if err != nil {
 		return fmt.Errorf("[tcp] %s <-x-> %s handleConn readfull error: %w", conn.RemoteAddr(), conn.LocalAddr(), err)
 	}
