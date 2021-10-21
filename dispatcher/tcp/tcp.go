@@ -35,7 +35,7 @@ func New(g *config.Group) (d dispatcher.Dispatcher) {
 }
 
 func (d *TCP) Listen() (err error) {
-	d.l, err = net.Listen("tcp", fmt.Sprintf(":%d", d.group.Port))
+	d.l, err = ListenTCP(fmt.Sprintf(":%d", d.group.Port), d.group.ListenerTCPFastOpen)
 	if err != nil {
 		return
 	}
@@ -105,7 +105,7 @@ func (d *TCP) handleConn(conn net.Conn) error {
 	}
 
 	// dial and relay
-	rc, err := net.Dial("tcp", server.Target)
+	rc, err := DialTCP(server.Target, server.TCPFastOpen)
 	if err != nil {
 		return fmt.Errorf("[tcp] %s <-> %s <-x-> %s handleConn dial error: %w", conn.RemoteAddr(), conn.LocalAddr(), server.Target, err)
 	}

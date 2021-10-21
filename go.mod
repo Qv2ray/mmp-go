@@ -3,9 +3,9 @@ module github.com/Qv2ray/mmp-go
 go 1.17
 
 require (
-	github.com/qv2ray/smaead v0.0.0-20210102113335-316eca415c84
-	golang.org/x/crypto v0.0.0-20201221181555-eec23a3978ad
-	golang.org/x/net v0.0.0-20190404232315-eb5bcb51f2a3
+	github.com/qv2ray/smaead v0.0.0-20211021072225-a01f7e01d185
+	golang.org/x/crypto v0.0.0-20210921155107-089bfa567519
+	golang.org/x/net v0.0.0-20211020060615-d418f374d309
 )
 
-require golang.org/x/sys v0.0.0-20191026070338-33540a1f6037 // indirect
+require golang.org/x/sys v0.0.0-20211020174200-9d6173849985

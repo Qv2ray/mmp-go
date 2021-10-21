@@ -8,13 +8,14 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"golang.org/x/crypto/ssh"
 	"io"
 	"net"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
+
+	"golang.org/x/crypto/ssh"
 )
 
 type Outline struct {
@@ -28,6 +29,7 @@ type Outline struct {
 	SSHPassword   string `json:"sshPassword"`
 	ApiUrl        string `json:"apiUrl"`
 	ApiCertSha256 string `json:"apiCertSha256"`
+	TCPFastOpen   bool   `json:"TCPFastOpen"`
 }
 
 const timeout = 10 * time.Second
@@ -228,7 +230,7 @@ func (outline Outline) GetServers() (servers []Server, err error) {
 	if err != nil {
 		return
 	}
-	return conf.ToServers(outline.Name, outline.Server), nil
+	return conf.ToServers(outline.Name, outline.Server, outline.TCPFastOpen), nil
 }
 
 type AccessKey struct {
@@ -240,16 +242,17 @@ type AccessKey struct {
 	Method           string `json:"method"` // the alias of EncryptionMethod
 }
 
-func (key *AccessKey) ToServer(name, host string) Server {
+func (key *AccessKey) ToServer(name, host string, tfo bool) Server {
 	method := key.EncryptionMethod
 	if method == "" {
 		method = key.Method
 	}
 	return Server{
-		Name:     fmt.Sprintf("%s - %s", name, key.Name),
-		Target:   net.JoinHostPort(host, strconv.Itoa(key.Port)),
-		Method:   method,
-		Password: key.Password,
+		Name:        fmt.Sprintf("%s - %s", name, key.Name),
+		Target:      net.JoinHostPort(host, strconv.Itoa(key.Port)),
+		TCPFastOpen: tfo,
+		Method:      method,
+		Password:    key.Password,
 	}
 }
 
@@ -257,10 +260,10 @@ type ShadowboxConfig struct {
 	AccessKeys []AccessKey `json:"accessKeys"`
 }
 
-func (c *ShadowboxConfig) ToServers(name, host string) []Server {
+func (c *ShadowboxConfig) ToServers(name, host string, tfo bool) []Server {
 	var servers []Server
 	for _, k := range c.AccessKeys {
-		servers = append(servers, k.ToServer(name, host))
+		servers = append(servers, k.ToServer(name, host, tfo))
 	}
 	return servers
 }
