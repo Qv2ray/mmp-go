@@ -14,7 +14,7 @@ func ListenTCP(address string, tfo bool) (net.Listener, error) {
 	if tfo {
 		lc.Control = func(network, address string, c syscall.RawConn) error {
 			return c.Control(func(fd uintptr) {
-				if err := unix.SetsockoptInt(int(fd), unix.SOL_TCP, unix.TCP_FASTOPEN, 4096); err != nil {
+				if err := unix.SetsockoptInt(int(fd), unix.IPPROTO_TCP, unix.TCP_FASTOPEN, 4096); err != nil {
 					log.Printf("[warning] Failed to set socket option TCP_FASTOPEN: %v", err)
 				}
 			})
@@ -28,7 +28,7 @@ func DialTCP(address string, tfo bool) (net.Conn, error) {
 	if tfo {
 		d.Control = func(network, address string, c syscall.RawConn) error {
 			return c.Control(func(fd uintptr) {
-				if err := unix.SetsockoptInt(int(fd), unix.SOL_TCP, unix.TCP_FASTOPEN_CONNECT, 1); err != nil {
+				if err := unix.SetsockoptInt(int(fd), unix.IPPROTO_TCP, unix.TCP_FASTOPEN_CONNECT, 1); err != nil {
 					log.Printf("[warning] Failed to set socket option TCP_FASTOPEN_CONNECT: %v", err)
 				}
 			})
