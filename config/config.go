@@ -4,12 +4,13 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"github.com/Qv2ray/mmp-go/cipher"
-	"github.com/Qv2ray/mmp-go/infra/lru"
 	"log"
 	"os"
 	"sync"
 	"time"
+
+	"github.com/Qv2ray/mmp-go/cipher"
+	"github.com/Qv2ray/mmp-go/infra/lru"
 )
 
 type Config struct {
@@ -20,6 +21,7 @@ type Config struct {
 type Server struct {
 	Name         string        `json:"name"`
 	Target       string        `json:"target"`
+	TCPFastOpen  bool          `json:"TCPFastOpen"`
 	Method       string        `json:"method"`
 	Password     string        `json:"password"`
 	MasterKey    []byte        `json:"-"`
@@ -27,11 +29,12 @@ type Server struct {
 }
 
 type Group struct {
-	Name            string           `json:"name"`
-	Port            int              `json:"port"`
-	Servers         []Server         `json:"servers"`
-	Upstreams       []UpstreamConf   `json:"upstreams"`
-	UserContextPool *UserContextPool `json:"-"`
+	Name                string           `json:"name"`
+	Port                int              `json:"port"`
+	ListenerTCPFastOpen bool             `json:"listenerTCPFastOpen"`
+	Servers             []Server         `json:"servers"`
+	Upstreams           []UpstreamConf   `json:"upstreams"`
+	UserContextPool     *UserContextPool `json:"-"`
 }
 
 type UpstreamConf map[string]interface{}
