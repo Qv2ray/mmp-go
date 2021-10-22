@@ -1,8 +1,9 @@
 package main
 
 import (
-	"github.com/Qv2ray/mmp-go/config"
 	"log"
+
+	"github.com/Qv2ray/mmp-go/config"
 )
 
 func ReloadConfig() {
@@ -23,9 +24,9 @@ func ReloadConfig() {
 		newGroup := &newConf.Groups[i]
 		for j := range newGroup.Upstreams {
 			newUpstream := newGroup.Upstreams[j]
-			pErr := newUpstream.GetPullingError()
+			pErr := newUpstream.PullingError
 			if pErr != nil {
-				log.Printf("skip to update some servers in group %v , error on upstream %v: %v", newGroup.Name, newUpstream["name"], pErr)
+				log.Printf("skip to update some servers in group %v , error on upstream %v: %v", newGroup.Name, newUpstream.Name, pErr)
 				// error occurred, remain those servers
 
 				// find the group in the oldConf

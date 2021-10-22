@@ -19,8 +19,7 @@ import (
 )
 
 type Outline struct {
-	Name                  string `json:"name"`
-	Type                  string `json:"type"`
+	Name                  string `json:"-"`
 	Server                string `json:"server"`
 	Link                  string `json:"link"`
 	SSHPort               string `json:"sshPort"`
@@ -35,7 +34,7 @@ type Outline struct {
 
 const timeout = 10 * time.Second
 
-var IncorrectPasswordErr = fmt.Errorf("incorrect password")
+var ErrIncorrectPassword = fmt.Errorf("incorrect password")
 
 func (outline Outline) getConfig() ([]byte, error) {
 	if outline.Server == "" {
@@ -77,7 +76,7 @@ func (outline Outline) getConfig() ([]byte, error) {
 		return nil, err
 	}
 	// b and err is both nil, no valid info to get configure
-	return nil, InvalidUpstreamErr
+	return nil, ErrInvalidUpstream
 }
 
 func (outline Outline) getConfigFromLink() ([]byte, error) {
@@ -207,13 +206,9 @@ func sudoCombinedOutput(client *ssh.Client, password string, cmd string) (b []by
 	b, err = session.CombinedOutput("sh -c " + strconv.Quote(fmt.Sprintf("echo %v|sudo -p %v -S %v", strconv.Quote(password), strconv.Quote(prompt), cmd)))
 	b = bytes.TrimPrefix(bytes.TrimSpace(b), []byte(prompt))
 	if bytes.Contains(b, []byte(prompt)) {
-		return b, IncorrectPasswordErr
+		return b, ErrIncorrectPassword
 	}
 	return b, err
-}
-
-func (outline Outline) GetName() string {
-	return outline.Name
 }
 
 func (outline Outline) GetServers() (servers []Server, err error) {
@@ -232,6 +227,10 @@ func (outline Outline) GetServers() (servers []Server, err error) {
 		return
 	}
 	return conf.ToServers(outline.Name, outline.Server, outline.TCPFastOpen, outline.AccessKeyPortOverride), nil
+}
+
+func (outline Outline) Equal(that Upstream) bool {
+	return outline == that
 }
 
 type AccessKey struct {
