@@ -37,40 +37,16 @@ type Group struct {
 	UserContextPool     *UserContextPool `json:"-"`
 }
 
-type UpstreamConf map[string]interface{}
-
-const (
-	PullingErrorKey = "__pulling_error__"
-)
-
-func (uc UpstreamConf) GetPullingError() error {
-	if v, ok := uc[PullingErrorKey]; ok {
-		return v.(error)
-	}
-	return nil
-}
-func (uc UpstreamConf) SetPullingError(err error) {
-	uc[PullingErrorKey] = err
+type UpstreamConf struct {
+	Name         string          `json:"name"`
+	Type         string          `json:"type"`
+	Settings     json.RawMessage `json:"settings"`
+	PullingError error           `json:"-"`
+	Upstream     Upstream        `json:"-"`
 }
 
 func (uc UpstreamConf) Equal(that UpstreamConf) bool {
-	for k, v := range uc {
-		if k == PullingErrorKey {
-			continue
-		}
-		if vv, ok := that[k]; !ok || vv != v {
-			return false
-		}
-	}
-	for k, v := range that {
-		if k == PullingErrorKey {
-			continue
-		}
-		if vv, ok := uc[k]; !ok || vv != v {
-			return false
-		}
-	}
-	return true
+	return uc.Name == that.Name && uc.Type == that.Type && uc.Upstream.Equal(that.Upstream)
 }
 
 const (
@@ -127,8 +103,8 @@ func (config *Config) CheckDiverseCombinations() error {
 	return nil
 }
 
-func pullFromUpstream(upstream Upstream, upstreamConf *UpstreamConf) ([]Server, error) {
-	servers, err := upstream.GetServers()
+func pullFromUpstream(upstreamConf *UpstreamConf) ([]Server, error) {
+	servers, err := upstreamConf.Upstream.GetServers()
 	if err != nil {
 		return nil, err
 	}
@@ -145,34 +121,34 @@ func parseUpstreams(config *Config) (err error) {
 		group := &config.Groups[i]
 		mu := sync.Mutex{}
 		for i := range group.Upstreams {
-			var upstream Upstream
 			upstreamConf := &group.Upstreams[i]
 
-			switch (*upstreamConf)["type"] {
+			switch upstreamConf.Type {
 			case "outline":
-				var outline Outline
-				err = Map2Upstream(*upstreamConf, &outline)
+				upstreamConf.Upstream = &Outline{
+					Name: upstreamConf.Name,
+				}
+				err = json.Unmarshal(upstreamConf.Settings, upstreamConf.Upstream)
 				if err != nil {
 					return err
 				}
-				upstream = outline
 			default:
-				return fmt.Errorf("unknown upstream type: %v", (*upstreamConf)["type"])
+				return fmt.Errorf("unknown upstream type: %v", upstreamConf.Type)
 			}
 
 			wg.Add(1)
 			go func(group *Group, upstreamConf *UpstreamConf) {
 				defer wg.Done()
-				servers, err := pullFromUpstream(upstream, upstreamConf)
+				servers, err := pullFromUpstream(upstreamConf)
 				if err != nil {
-					upstreamConf.SetPullingError(err)
-					log.Printf("[warning] Failed to pull from group %s upstream %s: %v\n", group.Name, upstream.GetName(), err)
+					upstreamConf.PullingError = err
+					log.Printf("[warning] Failed to pull from group %s upstream %s: %v\n", group.Name, upstreamConf.Name, err)
 					return
 				}
 				mu.Lock()
 				group.Servers = append(group.Servers, servers...)
 				mu.Unlock()
-				log.Printf("Pulled %d servers from group %s upstream %s", len(servers), group.Name, upstream.GetName())
+				log.Printf("Pulled %d servers from group %s upstream %s\n", len(servers), group.Name, upstreamConf.Name)
 			}(group, upstreamConf)
 		}
 	}

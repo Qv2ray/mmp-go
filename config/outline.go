@@ -19,22 +19,22 @@ import (
 )
 
 type Outline struct {
-	Name          string `json:"name"`
-	Type          string `json:"type"`
-	Server        string `json:"server"`
-	Link          string `json:"link"`
-	SSHPort       string `json:"sshPort"`
-	SSHUsername   string `json:"sshUsername"`
-	SSHPrivateKey string `json:"sshPrivateKey"`
-	SSHPassword   string `json:"sshPassword"`
-	ApiUrl        string `json:"apiUrl"`
-	ApiCertSha256 string `json:"apiCertSha256"`
-	TCPFastOpen   bool   `json:"TCPFastOpen"`
+	Name                  string `json:"-"`
+	Server                string `json:"server"`
+	Link                  string `json:"link"`
+	SSHPort               string `json:"sshPort"`
+	SSHUsername           string `json:"sshUsername"`
+	SSHPrivateKey         string `json:"sshPrivateKey"`
+	SSHPassword           string `json:"sshPassword"`
+	ApiUrl                string `json:"apiUrl"`
+	ApiCertSha256         string `json:"apiCertSha256"`
+	TCPFastOpen           bool   `json:"TCPFastOpen"`
+	AccessKeyPortOverride int    `json:"accessKeyPortOverride"`
 }
 
 const timeout = 10 * time.Second
 
-var IncorrectPasswordErr = fmt.Errorf("incorrect password")
+var ErrIncorrectPassword = fmt.Errorf("incorrect password")
 
 func (outline Outline) getConfig() ([]byte, error) {
 	if outline.Server == "" {
@@ -76,7 +76,7 @@ func (outline Outline) getConfig() ([]byte, error) {
 		return nil, err
 	}
 	// b and err is both nil, no valid info to get configure
-	return nil, InvalidUpstreamErr
+	return nil, ErrInvalidUpstream
 }
 
 func (outline Outline) getConfigFromLink() ([]byte, error) {
@@ -206,13 +206,9 @@ func sudoCombinedOutput(client *ssh.Client, password string, cmd string) (b []by
 	b, err = session.CombinedOutput("sh -c " + strconv.Quote(fmt.Sprintf("echo %v|sudo -p %v -S %v", strconv.Quote(password), strconv.Quote(prompt), cmd)))
 	b = bytes.TrimPrefix(bytes.TrimSpace(b), []byte(prompt))
 	if bytes.Contains(b, []byte(prompt)) {
-		return b, IncorrectPasswordErr
+		return b, ErrIncorrectPassword
 	}
 	return b, err
-}
-
-func (outline Outline) GetName() string {
-	return outline.Name
 }
 
 func (outline Outline) GetServers() (servers []Server, err error) {
@@ -230,7 +226,11 @@ func (outline Outline) GetServers() (servers []Server, err error) {
 	if err != nil {
 		return
 	}
-	return conf.ToServers(outline.Name, outline.Server, outline.TCPFastOpen), nil
+	return conf.ToServers(outline.Name, outline.Server, outline.TCPFastOpen, outline.AccessKeyPortOverride), nil
+}
+
+func (outline Outline) Equal(that Upstream) bool {
+	return outline == that
 }
 
 type AccessKey struct {
@@ -242,14 +242,17 @@ type AccessKey struct {
 	Method           string `json:"method"` // the alias of EncryptionMethod
 }
 
-func (key *AccessKey) ToServer(name, host string, tfo bool) Server {
+func (key *AccessKey) ToServer(name, host string, tfo bool, portOverride int) Server {
 	method := key.EncryptionMethod
 	if method == "" {
 		method = key.Method
 	}
+	if portOverride == 0 {
+		portOverride = key.Port
+	}
 	return Server{
 		Name:        fmt.Sprintf("%s - %s", name, key.Name),
-		Target:      net.JoinHostPort(host, strconv.Itoa(key.Port)),
+		Target:      net.JoinHostPort(host, strconv.Itoa(portOverride)),
 		TCPFastOpen: tfo,
 		Method:      method,
 		Password:    key.Password,
@@ -260,10 +263,10 @@ type ShadowboxConfig struct {
 	AccessKeys []AccessKey `json:"accessKeys"`
 }
 
-func (c *ShadowboxConfig) ToServers(name, host string, tfo bool) []Server {
+func (c *ShadowboxConfig) ToServers(name, host string, tfo bool, portOverride int) []Server {
 	var servers []Server
 	for _, k := range c.AccessKeys {
-		servers = append(servers, k.ToServer(name, host, tfo))
+		servers = append(servers, k.ToServer(name, host, tfo, portOverride))
 	}
 	return servers
 }
