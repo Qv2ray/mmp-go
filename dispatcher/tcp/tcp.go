@@ -19,6 +19,10 @@ import (
 const (
 	BasicLen = 32 + 2 + 16
 	MaxLen   = BasicLen + 16383 + 16
+
+	// 59 seconds is the most common timeout for servers that do not respond to invalid requests.
+	// This value is used by outline-ss-server.
+	TCPReadTimeout = 59 * time.Second
 )
 
 func init() {
@@ -75,11 +79,10 @@ func (d *TCP) handleConn(conn net.Conn) error {
 	/*
 	   https://github.com/shadowsocks/shadowsocks-org/blob/master/whitepaper/whitepaper.md
 	*/
-	var (
-		server      *config.Server
-		userContext *config.UserContext
-	)
 	defer conn.Close()
+
+	// Set a read timeout to drop connections that fail to finish auth in time.
+	conn.SetReadDeadline(time.Now().Add(TCPReadTimeout))
 
 	data := pool.Get(MaxLen)
 	defer pool.Put(data)
@@ -87,16 +90,16 @@ func (d *TCP) handleConn(conn net.Conn) error {
 	defer pool.Put(buf)
 	n, err := io.ReadAtLeast(conn, data, BasicLen)
 	if err != nil {
-		return fmt.Errorf("[tcp] %s <-x-> %s handleConn readfull error: %w", conn.RemoteAddr(), conn.LocalAddr(), err)
+		return fmt.Errorf("[tcp] %s <-x-> %s handleConn ReadAtLeast error: %w", conn.RemoteAddr(), conn.LocalAddr(), err)
 	}
 
 	// get user's context (preference)
 	d.gMutex.RLock() // avoid insert old servers to the new userContextPool
-	userContext = d.group.UserContextPool.GetOrInsert(conn.RemoteAddr(), d.group.Servers)
+	userContext := d.group.UserContextPool.GetOrInsert(conn.RemoteAddr(), d.group.Servers)
 	d.gMutex.RUnlock()
 
 	// auth every server
-	server, _ = d.Auth(buf, data, userContext)
+	server, _ := d.Auth(buf, data, userContext)
 	if server == nil {
 		if len(d.group.Servers) == 0 {
 			return nil
@@ -104,6 +107,9 @@ func (d *TCP) handleConn(conn net.Conn) error {
 		// fallback
 		server = &d.group.Servers[0]
 	}
+
+	// Clear read timeout
+	conn.SetReadDeadline(time.Time{})
 
 	// dial and relay
 	rc, err := DialTCP(server.Target, server.TCPFastOpen)
