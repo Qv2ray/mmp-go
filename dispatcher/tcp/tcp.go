@@ -19,10 +19,6 @@ import (
 const (
 	BasicLen = 32 + 2 + 16
 	MaxLen   = BasicLen + 16383 + 16
-
-	// 59 seconds is the most common timeout for servers that do not respond to invalid requests.
-	// This value is used by outline-ss-server.
-	TCPReadTimeout = 59 * time.Second
 )
 
 func init() {
@@ -81,8 +77,9 @@ func (d *TCP) handleConn(conn net.Conn) error {
 	*/
 	defer conn.Close()
 
-	// Set a read timeout to drop connections that fail to finish auth in time.
-	conn.SetReadDeadline(time.Now().Add(TCPReadTimeout))
+	if d.group.AuthTimeoutSec > 0 {
+		conn.SetReadDeadline(time.Now().Add(time.Duration(d.group.AuthTimeoutSec) * time.Second))
+	}
 
 	data := pool.Get(MaxLen)
 	defer pool.Put(data)
@@ -108,8 +105,9 @@ func (d *TCP) handleConn(conn net.Conn) error {
 		server = &d.group.Servers[0]
 	}
 
-	// Clear read timeout
-	conn.SetReadDeadline(time.Time{})
+	if d.group.AuthTimeoutSec > 0 {
+		conn.SetReadDeadline(time.Time{})
+	}
 
 	// dial and relay
 	rc, err := DialTCP(server.Target, server.TCPFastOpen)
