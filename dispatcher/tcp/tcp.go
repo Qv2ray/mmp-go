@@ -75,11 +75,11 @@ func (d *TCP) handleConn(conn net.Conn) error {
 	/*
 	   https://github.com/shadowsocks/shadowsocks-org/blob/master/whitepaper/whitepaper.md
 	*/
-	var (
-		server      *config.Server
-		userContext *config.UserContext
-	)
 	defer conn.Close()
+
+	if d.group.AuthTimeoutSec > 0 {
+		conn.SetReadDeadline(time.Now().Add(time.Duration(d.group.AuthTimeoutSec) * time.Second))
+	}
 
 	data := pool.Get(MaxLen)
 	defer pool.Put(data)
@@ -87,22 +87,26 @@ func (d *TCP) handleConn(conn net.Conn) error {
 	defer pool.Put(buf)
 	n, err := io.ReadAtLeast(conn, data, BasicLen)
 	if err != nil {
-		return fmt.Errorf("[tcp] %s <-x-> %s handleConn readfull error: %w", conn.RemoteAddr(), conn.LocalAddr(), err)
+		return fmt.Errorf("[tcp] %s <-x-> %s handleConn ReadAtLeast error: %w", conn.RemoteAddr(), conn.LocalAddr(), err)
 	}
 
 	// get user's context (preference)
 	d.gMutex.RLock() // avoid insert old servers to the new userContextPool
-	userContext = d.group.UserContextPool.GetOrInsert(conn.RemoteAddr(), d.group.Servers)
+	userContext := d.group.UserContextPool.GetOrInsert(conn.RemoteAddr(), d.group.Servers)
 	d.gMutex.RUnlock()
 
 	// auth every server
-	server, _ = d.Auth(buf, data, userContext)
+	server, _ := d.Auth(buf, data, userContext)
 	if server == nil {
 		if len(d.group.Servers) == 0 {
 			return nil
 		}
 		// fallback
 		server = &d.group.Servers[0]
+	}
+
+	if d.group.AuthTimeoutSec > 0 {
+		conn.SetReadDeadline(time.Time{})
 	}
 
 	// dial and relay

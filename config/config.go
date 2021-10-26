@@ -35,6 +35,11 @@ type Group struct {
 	Servers             []Server         `json:"servers"`
 	Upstreams           []UpstreamConf   `json:"upstreams"`
 	UserContextPool     *UserContextPool `json:"-"`
+
+	// AuthTimeoutSec sets a TCP read timeout to drop connections that fail to finish auth in time.
+	// Default: no timeout
+	// outline-ss-server uses 59s, which is claimed to be the most common timeout for servers that do not respond to invalid requests.
+	AuthTimeoutSec int `json:"authTimeoutSec"`
 }
 
 type UpstreamConf struct {
