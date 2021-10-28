@@ -36,11 +36,11 @@ const timeout = 10 * time.Second
 
 var ErrIncorrectPassword = fmt.Errorf("incorrect password")
 
-func (outline Outline) getConfig() ([]byte, error) {
+func (outline Outline) getConfig(c *http.Client) ([]byte, error) {
 	if outline.Server == "" {
 		return nil, fmt.Errorf("server field cannot be empty")
 	}
-	tryList := []func() ([]byte, error){
+	tryList := []func(*http.Client) ([]byte, error){
 		outline.getConfigFromLink,
 		outline.getConfigFromApi,
 		outline.getConfigFromSSH,
@@ -51,7 +51,7 @@ func (outline Outline) getConfig() ([]byte, error) {
 		b    []byte
 	)
 	for _, f := range tryList {
-		b, err = f()
+		b, err = f(c)
 		if err != nil {
 			// try next func
 			b = nil
@@ -79,14 +79,11 @@ func (outline Outline) getConfig() ([]byte, error) {
 	return nil, ErrInvalidUpstream
 }
 
-func (outline Outline) getConfigFromLink() ([]byte, error) {
+func (outline Outline) getConfigFromLink(c *http.Client) ([]byte, error) {
 	if outline.Link == "" {
 		return nil, nil
 	}
-	client := http.Client{
-		Timeout: timeout,
-	}
-	resp, err := client.Get(outline.Link)
+	resp, err := c.Get(outline.Link)
 	if err != nil {
 		return nil, fmt.Errorf("getConfigFromLink failed: %w", err)
 	}
@@ -94,29 +91,31 @@ func (outline Outline) getConfigFromLink() ([]byte, error) {
 	return io.ReadAll(resp.Body)
 }
 
-func (outline Outline) getConfigFromApi() ([]byte, error) {
-	if outline.ApiUrl == "" || outline.ApiCertSha256 == "" {
+func (outline Outline) getConfigFromApi(c *http.Client) ([]byte, error) {
+	if outline.ApiUrl == "" {
 		return nil, nil
 	}
-	client := http.Client{
-		Transport: &http.Transport{TLSClientConfig: &tls.Config{
-			InsecureSkipVerify: true,
-			VerifyPeerCertificate: func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
-				h := crypto.SHA256.New()
-				for _, line := range rawCerts {
-					h.Write(line)
-				}
-				fingerprint := hex.EncodeToString(h.Sum(nil))
-				if !strings.EqualFold(fingerprint, outline.ApiCertSha256) {
-					return fmt.Errorf("incorrect certSha256 from server: %v", strings.ToUpper(fingerprint))
-				}
-				return nil
-			},
-		}},
-		Timeout: timeout,
+	if outline.ApiCertSha256 != "" {
+		c = &http.Client{
+			Transport: &http.Transport{TLSClientConfig: &tls.Config{
+				InsecureSkipVerify: true,
+				VerifyPeerCertificate: func(rawCerts [][]byte, verifiedChains [][]*x509.Certificate) error {
+					h := crypto.SHA256.New()
+					for _, line := range rawCerts {
+						h.Write(line)
+					}
+					fingerprint := hex.EncodeToString(h.Sum(nil))
+					if !strings.EqualFold(fingerprint, outline.ApiCertSha256) {
+						return fmt.Errorf("incorrect certSha256 from server: %v", strings.ToUpper(fingerprint))
+					}
+					return nil
+				},
+			}},
+			Timeout: timeout,
+		}
 	}
 	outline.ApiUrl = strings.TrimSuffix(outline.ApiUrl, "/")
-	resp, err := client.Get(fmt.Sprintf("%v/access-keys", outline.ApiUrl))
+	resp, err := c.Get(fmt.Sprintf("%v/access-keys", outline.ApiUrl))
 	if err != nil {
 		return nil, fmt.Errorf("getConfigFromApi failed: %w", err)
 	}
@@ -124,7 +123,7 @@ func (outline Outline) getConfigFromApi() ([]byte, error) {
 	return io.ReadAll(resp.Body)
 }
 
-func (outline Outline) getConfigFromSSH() ([]byte, error) {
+func (outline Outline) getConfigFromSSH(*http.Client) ([]byte, error) {
 	if outline.SSHUsername == "" || (outline.SSHPrivateKey == "" && outline.SSHPassword == "") {
 		return nil, nil
 	}
@@ -211,13 +210,13 @@ func sudoCombinedOutput(client *ssh.Client, password string, cmd string) (b []by
 	return b, err
 }
 
-func (outline Outline) GetServers() (servers []Server, err error) {
+func (outline Outline) GetServers(c *http.Client) (servers []Server, err error) {
 	defer func() {
 		if err != nil {
 			err = fmt.Errorf("outline.GetGroups: %w", err)
 		}
 	}()
-	b, err := outline.getConfig()
+	b, err := outline.getConfig(c)
 	if err != nil {
 		return
 	}

@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"sync"
 	"time"
@@ -14,8 +15,9 @@ import (
 )
 
 type Config struct {
-	ConfPath string  `json:"-"`
-	Groups   []Group `json:"groups"`
+	ConfPath   string       `json:"-"`
+	HttpClient *http.Client `json:"-"`
+	Groups     []Group      `json:"groups"`
 }
 
 type Server struct {
@@ -108,8 +110,8 @@ func (config *Config) CheckDiverseCombinations() error {
 	return nil
 }
 
-func pullFromUpstream(upstreamConf *UpstreamConf) ([]Server, error) {
-	servers, err := upstreamConf.Upstream.GetServers()
+func pullFromUpstream(upstreamConf *UpstreamConf, c *http.Client) ([]Server, error) {
+	servers, err := upstreamConf.Upstream.GetServers(c)
 	if err != nil {
 		return nil, err
 	}
@@ -144,7 +146,7 @@ func parseUpstreams(config *Config) (err error) {
 			wg.Add(1)
 			go func(group *Group, upstreamConf *UpstreamConf) {
 				defer wg.Done()
-				servers, err := pullFromUpstream(upstreamConf)
+				servers, err := pullFromUpstream(upstreamConf, config.HttpClient)
 				if err != nil {
 					upstreamConf.PullingError = err
 					log.Printf("[warning] Failed to pull from group %s upstream %s: %v\n", group.Name, upstreamConf.Name, err)
@@ -180,9 +182,10 @@ func build(config *Config) {
 	}
 }
 
-func BuildConfig(confPath string) (conf *Config, err error) {
+func BuildConfig(confPath string, c *http.Client) (conf *Config, err error) {
 	conf = new(Config)
 	conf.ConfPath = confPath
+	conf.HttpClient = c
 	b, err := os.ReadFile(confPath)
 	if err != nil {
 		return nil, err
@@ -204,27 +207,25 @@ func SetConfig(conf *Config) {
 	config = conf
 }
 
-func GetConfig() *Config {
-	once.Do(func() {
-		var err error
+func NewConfig(c *http.Client) *Config {
+	var err error
 
-		version := flag.Bool("v", false, "version")
-		confPath := flag.String("conf", "example.json", "config file path")
-		suppressTimestamps := flag.Bool("suppress-timestamps", false, "do not include timestamps in log")
-		flag.Parse()
+	version := flag.Bool("v", false, "version")
+	confPath := flag.String("conf", "example.json", "config file path")
+	suppressTimestamps := flag.Bool("suppress-timestamps", false, "do not include timestamps in log")
+	flag.Parse()
 
-		if *version {
-			fmt.Println(Version)
-			os.Exit(0)
-		}
+	if *version {
+		fmt.Println(Version)
+		os.Exit(0)
+	}
 
-		if *suppressTimestamps {
-			log.SetFlags(log.Flags() &^ (log.Ldate | log.Ltime))
-		}
+	if *suppressTimestamps {
+		log.SetFlags(log.Flags() &^ (log.Ldate | log.Ltime))
+	}
 
-		if config, err = BuildConfig(*confPath); err != nil {
-			log.Fatalln(err)
-		}
-	})
+	if config, err = BuildConfig(*confPath, c); err != nil {
+		log.Fatalln(err)
+	}
 	return config
 }

@@ -6,15 +6,15 @@ import (
 	"github.com/Qv2ray/mmp-go/config"
 )
 
-func ReloadConfig() {
+func ReloadConfig(oldConf *config.Config) {
 	log.Println("Reloading configuration")
 	mPortDispatcher.Lock()
 	defer mPortDispatcher.Unlock()
 
 	// rebuild config
-	confPath := config.GetConfig().ConfPath
-	oldConf := config.GetConfig()
-	newConf, err := config.BuildConfig(confPath)
+	confPath := oldConf.ConfPath
+	httpClient := oldConf.HttpClient
+	newConf, err := config.BuildConfig(confPath, httpClient)
 	if err != nil {
 		log.Printf("failed to reload configuration: %v", err)
 		return
