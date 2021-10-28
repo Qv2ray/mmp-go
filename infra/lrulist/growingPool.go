@@ -24,7 +24,10 @@ func (p *growingPool) Get(need int) []*Node {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if need > p.size {
-		*p = *newGrowingPool(1 << bits.Len32(uint32(need)))
+		p.size = 1 << bits.Len32(uint32(need))
+		p.pool = &sync.Pool{New: func() interface{} {
+			return make([]*Node, p.size)
+		}}
 	}
 	return p.pool.Get().([]*Node)[:need]
 }
