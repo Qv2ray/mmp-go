@@ -1,13 +1,18 @@
 package main
 
 import (
+	"log"
+	"net/http"
+	"sync"
+	"time"
+
 	"github.com/Qv2ray/mmp-go/config"
 	"github.com/Qv2ray/mmp-go/dispatcher"
 	_ "github.com/Qv2ray/mmp-go/dispatcher/tcp"
 	_ "github.com/Qv2ray/mmp-go/dispatcher/udp"
-	"log"
-	"sync"
 )
+
+const HttpClientTimeout = 10 * time.Second
 
 type MapPortDispatcher map[int]*[len(protocols)]dispatcher.Dispatcher
 
@@ -51,8 +56,7 @@ func listenProtocols(group *config.Group, protocols []string) error {
 		d, _ := dispatcher.New(protocol, group)
 		(*t)[i] = d
 		go func() {
-			var err error
-			err = d.Listen()
+			err := d.Listen()
 			ch <- err
 		}()
 	}
@@ -60,11 +64,14 @@ func listenProtocols(group *config.Group, protocols []string) error {
 }
 
 func main() {
+	conf := config.NewConfig(&http.Client{
+		Timeout: HttpClientTimeout,
+	})
+
 	// handle reload
-	go signalHandler()
+	go signalHandler(conf)
 
 	mPortDispatcher.Lock()
-	conf := config.GetConfig()
 	for i := range conf.Groups {
 		groupWG.Add(1)
 		go func(group *config.Group) {

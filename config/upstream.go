@@ -2,10 +2,11 @@ package config
 
 import (
 	"fmt"
+	"net/http"
 )
 
 type Upstream interface {
-	GetServers() (servers []Server, err error)
+	GetServers(*http.Client) (servers []Server, err error)
 	Equal(Upstream) bool
 }
 
