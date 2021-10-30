@@ -25,6 +25,18 @@ func init() {
 	dispatcher.Register("tcp", New)
 }
 
+// DuplexConn is a net.Conn that allows for closing only the reader or writer end of
+// it, supporting half-open state.
+type DuplexConn interface {
+	net.Conn
+	// Closes the Read end of the connection, allowing for the release of resources.
+	// No more reads should happen.
+	CloseRead() error
+	// Closes the Write end of the connection. An EOF or FIN signal may be
+	// sent to the connection target.
+	CloseWrite() error
+}
+
 type TCP struct {
 	gMutex sync.RWMutex
 	group  *config.Group
@@ -122,7 +134,7 @@ func (d *TCP) handleConn(conn net.Conn) error {
 
 	log.Printf("[tcp] %s <-> %s <-> %s", conn.RemoteAddr(), conn.LocalAddr(), server.Target)
 
-	if err := relay(conn, rc); err != nil {
+	if err := relay(conn.(DuplexConn), rc.(DuplexConn)); err != nil {
 		if err, ok := err.(net.Error); ok && err.Timeout() {
 			return nil // ignore i/o timeout
 		}
@@ -131,18 +143,18 @@ func (d *TCP) handleConn(conn net.Conn) error {
 	return nil
 }
 
-func relay(lc, rc net.Conn) error {
+func relay(lc, rc DuplexConn) error {
 	defer rc.Close()
 	ch := make(chan error, 1)
 	go func() {
 		_, err := io.Copy(lc, rc)
-		lc.SetDeadline(time.Now())
-		rc.SetDeadline(time.Now())
+		rc.CloseRead()
+		lc.CloseWrite()
 		ch <- err
 	}()
 	_, err := io.Copy(rc, lc)
-	lc.SetDeadline(time.Now())
-	rc.SetDeadline(time.Now())
+	lc.CloseRead()
+	rc.CloseWrite()
 	if err != nil {
 		return err
 	}
