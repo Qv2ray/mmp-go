@@ -1,6 +1,7 @@
 package tcp
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -13,6 +14,7 @@ import (
 	"github.com/Qv2ray/mmp-go/config"
 	"github.com/Qv2ray/mmp-go/dispatcher"
 	"github.com/Qv2ray/mmp-go/infra/pool"
+	"github.com/database64128/tfo-go"
 )
 
 //[salt][encrypted payload length][length tag][encrypted payload][payload tag]
@@ -48,7 +50,10 @@ func New(g *config.Group) (d dispatcher.Dispatcher) {
 }
 
 func (d *TCP) Listen() (err error) {
-	d.l, err = ListenTCP(fmt.Sprintf(":%d", d.group.Port), d.group.ListenerTCPFastOpen)
+	lc := tfo.ListenConfig{
+		DisableTFO: !d.group.ListenerTCPFastOpen,
+	}
+	d.l, err = lc.Listen(context.Background(), "tcp", fmt.Sprintf(":%d", d.group.Port))
 	if err != nil {
 		return
 	}
@@ -122,7 +127,10 @@ func (d *TCP) handleConn(conn net.Conn) error {
 	}
 
 	// dial and relay
-	rc, err := DialTCP(server.Target, server.TCPFastOpen)
+	dialer := tfo.Dialer{
+		DisableTFO: !server.TCPFastOpen,
+	}
+	rc, err := dialer.Dial("tcp", server.Target)
 	if err != nil {
 		return fmt.Errorf("[tcp] %s <-> %s <-x-> %s handleConn dial error: %w", conn.RemoteAddr(), conn.LocalAddr(), server.Target, err)
 	}
@@ -148,12 +156,10 @@ func relay(lc, rc DuplexConn) error {
 	ch := make(chan error, 1)
 	go func() {
 		_, err := io.Copy(lc, rc)
-		rc.CloseRead()
 		lc.CloseWrite()
 		ch <- err
 	}()
 	_, err := io.Copy(rc, lc)
-	lc.CloseRead()
 	rc.CloseWrite()
 	innerErr := <-ch
 	if err != nil {
