@@ -155,10 +155,11 @@ func relay(lc, rc DuplexConn) error {
 	_, err := io.Copy(rc, lc)
 	lc.CloseRead()
 	rc.CloseWrite()
+	innerErr := <-ch
 	if err != nil {
 		return err
 	}
-	return <-ch
+	return innerErr
 }
 
 func (d *TCP) Auth(buf []byte, data []byte, userContext *config.UserContext) (hit *config.Server, content []byte) {
