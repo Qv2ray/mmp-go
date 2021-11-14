@@ -42,6 +42,11 @@ type Group struct {
 	// Default: no timeout
 	// outline-ss-server uses 59s, which is claimed to be the most common timeout for servers that do not respond to invalid requests.
 	AuthTimeoutSec int `json:"authTimeoutSec"`
+
+	// DrainOnAuthFail controls whether to fallback to the first server in the group when authentication fails.
+	// Default: fallback to 1st server
+	// Set to true to drain the connection when authentication fails.
+	DrainOnAuthFail bool `json:"drainOnAuthFail"`
 }
 
 type UpstreamConf struct {
@@ -62,7 +67,6 @@ const (
 
 var (
 	config  *Config
-	once    sync.Once
 	Version = "debug"
 )
 

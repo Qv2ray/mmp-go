@@ -115,9 +115,16 @@ func (d *TCP) handleConn(conn net.Conn) error {
 	// auth every server
 	server, _ := d.Auth(buf, data, userContext)
 	if server == nil {
+		if d.group.DrainOnAuthFail {
+			log.Printf("[tcp] auth failed, draining conn %s <-> %s", conn.RemoteAddr(), conn.LocalAddr())
+			io.Copy(io.Discard, conn)
+			return nil
+		}
+
 		if len(d.group.Servers) == 0 {
 			return nil
 		}
+
 		// fallback
 		server = &d.group.Servers[0]
 	}
