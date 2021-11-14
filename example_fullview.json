@@ -4,6 +4,7 @@
       "name": "Group A",
       "port": 1090,
       "listenerTCPFastOpen": false,
+      "drainOnAuthFail": false,
       "upstreams": [
         {
           "name": "Outline A0",
