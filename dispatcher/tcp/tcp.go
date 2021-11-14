@@ -137,6 +137,7 @@ func (d *TCP) handleConn(conn net.Conn) error {
 	dialer := tfo.Dialer{
 		DisableTFO: !server.TCPFastOpen,
 	}
+	dialer.Timeout = time.Duration(d.group.DialTimeoutSec) * time.Second
 	rc, err := dialer.Dial("tcp", server.Target)
 	if err != nil {
 		return fmt.Errorf("[tcp] %s <-> %s <-x-> %s handleConn dial error: %w", conn.RemoteAddr(), conn.LocalAddr(), server.Target, err)

@@ -43,6 +43,11 @@ type Group struct {
 	// outline-ss-server uses 59s, which is claimed to be the most common timeout for servers that do not respond to invalid requests.
 	AuthTimeoutSec int `json:"authTimeoutSec"`
 
+	// DialTimeoutSec sets the connect timeout when dialing the target server.
+	// Default: no timeout (respect system default behavior)
+	// Set to a value greater than zero to override the platform's default behavior.
+	DialTimeoutSec int `json:"dialTimeoutSec"`
+
 	// DrainOnAuthFail controls whether to fallback to the first server in the group when authentication fails.
 	// Default: fallback to 1st server
 	// Set to true to drain the connection when authentication fails.
