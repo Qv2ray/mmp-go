@@ -3,6 +3,8 @@
     {
       "name": "Group A",
       "port": 1090,
+      "authTimeoutSec": 59,
+      "dialTimeoutSec": 10,
       "listenerTCPFastOpen": false,
       "drainOnAuthFail": false,
       "upstreams": [
