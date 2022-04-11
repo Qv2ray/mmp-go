@@ -136,7 +136,7 @@ jobs:
           openssl dgst -sha256 $FILE | sed 's/([^)]*)//g' >>$DGST
           openssl dgst -sha512 $FILE | sed 's/([^)]*)//g' >>$DGST
       - name: Upload ZIP file to Artifacts
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: mmp-go-${{ steps.get_filename.outputs.ASSET_NAME }}.zip
           path: mmp-go-${{ steps.get_filename.outputs.ASSET_NAME }}.zip
