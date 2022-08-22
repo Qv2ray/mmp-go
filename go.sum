@@ -1,5 +1,5 @@
-github.com/database64128/tfo-go v1.0.2 h1:Cq5+I9fJ4zngnHNLWolMknwK1fn6eYx2MoZSMlmUcIE=
-github.com/database64128/tfo-go v1.0.2/go.mod h1:XojFCk0XfoROhrdKxJQO7g6L2evWTNEHZTlQxeqd2Kg=
+github.com/database64128/tfo-go v1.1.2 h1:GwxtJp09BdUTVEoeT421t231eNZoGOCRkklbl4WI1kU=
+github.com/database64128/tfo-go v1.1.2/go.mod h1:jgrSUPyOvTGQyn6irCOpk7L2W/q/0VLZZcovQiMi+bI=
 github.com/qv2ray/smaead v0.0.0-20211021072225-a01f7e01d185 h1:MoLEK/RvsbuOrbymLBfQ1J5/8lAYbTeVj2xMxMxl0Tc=
 github.com/qv2ray/smaead v0.0.0-20211021072225-a01f7e01d185/go.mod h1:if5Sn4tlqxuTVNGBCm50lBBG7cqUQEOIM2hE2Ywd5V8=
 golang.org/x/crypto v0.0.0-20210921155107-089bfa567519 h1:7I4JAnoQBe7ZtJcBaYHi5UtiO8tQHbUSXxL+pnGRANg=
@@ -11,8 +11,8 @@ golang.org/x/sys v0.0.0-20201119102817-f84b799fce68/go.mod h1:h1NjWce9XRLGQEsW7w
 golang.org/x/sys v0.0.0-20210423082822-04245dca01da/go.mod h1:h1NjWce9XRLGQEsW7wpKNCjG9DtNlClVuFLEZdDNbEs=
 golang.org/x/sys v0.0.0-20210615035016-665e8c7367d1/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 golang.org/x/sys v0.0.0-20211020174200-9d6173849985/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
-golang.org/x/sys v0.0.0-20211025201205-69cdffdb9359 h1:2B5p2L5IfGiD7+b9BOoRMC6DgObAVZV+Fsp050NqXik=
-golang.org/x/sys v0.0.0-20211025201205-69cdffdb9359/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
+golang.org/x/sys v0.0.0-20220818161305-2296e01440c6 h1:Sx/u41w+OwrInGdEckYmEuU5gHoGSL4QbDz3S9s6j4U=
+golang.org/x/sys v0.0.0-20220818161305-2296e01440c6/go.mod h1:oPkhp1MJrh7nUepCBck5+mAzfO9JrbApNNgaTdGDITg=
 golang.org/x/term v0.0.0-20201126162022-7de9c90e9dd1 h1:v+OssWQX+hTHEmOBgwxdZxK4zHq3yOs8F9J7mk0PY8E=
 golang.org/x/term v0.0.0-20201126162022-7de9c90e9dd1/go.mod h1:bj7SfCRtBDWHUb9snDiAeCFNEtKQo2Wmx5Cou7ajbmo=
 golang.org/x/text v0.3.3/go.mod h1:5Zoc/QRtKVWzQhOtBMvqHzDpF6irO9z98xDceosuGiQ=
